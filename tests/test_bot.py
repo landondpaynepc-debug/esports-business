@@ -4,10 +4,11 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace as NS
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import discord
 
@@ -53,6 +54,15 @@ class StoreTests(unittest.TestCase):
         self.assertFalse(is_staff(member, 'ownership', cfg))
         member.guild_permissions.administrator = True
         self.assertTrue(is_staff(member, 'ownership', cfg))
+
+    def test_ownership_role_excludes_general_staff(self):
+        cfg = load_config()
+        staff = NS(guild_permissions=NS(administrator=False), roles=[NS(id=1564325589827977330)])
+        owner_staff = NS(guild_permissions=NS(administrator=False), roles=[NS(id=1569278707833503776)])
+        self.assertFalse(is_staff(staff, 'ownership', cfg))
+        self.assertTrue(is_staff(owner_staff, 'ownership', cfg))
+        self.assertTrue(is_staff(staff, 'general', cfg))
+        self.assertTrue(is_staff(staff, 'paid', cfg))
 
     def test_ticket_overwrites_are_private(self):
         guild = NS(default_role=discord.Object(1), me=discord.Object(2))
@@ -159,6 +169,12 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         channel, archive, path = await self.closure_fixture()
         events = []
         async def uploaded(**kwargs):
+            self.assertNotIn('content', kwargs)
+            self.assertEqual(kwargs['embed'].title, 'Ticket Transcript')
+            self.assertNotIn('color', kwargs['embed'].to_dict())
+            self.assertTrue(kwargs['file'].filename.endswith('.zip'))
+            with zipfile.ZipFile(kwargs['file'].fp) as archive_file:
+                self.assertEqual(archive_file.read('transcript.html'), b'<html>Test transcript</html>')
             events.append('uploaded')
         async def deleted(**kwargs):
             events.append('deleted')
@@ -168,6 +184,29 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
             await self.bot.close_ticket(self.interaction(), 'Resolved')
         self.assertEqual(events, ['uploaded', 'uploaded', 'deleted'])
         self.assertEqual(self.bot.store.ticket(100)['status'], 'closed')
+
+    async def test_existing_ownership_ticket_permissions_are_replaced(self):
+        owner, staff = discord.Object(12), discord.Object(1569278707833503776)
+        guild = NS(default_role=discord.Object(1), me=discord.Object(99), get_member=lambda _: owner)
+        category = NS(id=500, guild=guild)
+        ticket_channel = Mock(spec=discord.TextChannel)
+        ticket_channel.id = 100
+        ticket_channel.category_id = 500
+        ticket_channel.topic = 'Esports Business | Ownership Support | Owner: 12'
+        ticket_channel.edit = AsyncMock()
+        unrelated = Mock(spec=discord.TextChannel)
+        unrelated.id = 101
+        unrelated.category_id = 500
+        unrelated.topic = 'Unrelated channel'
+        unrelated.edit = AsyncMock()
+        guild.fetch_channels = AsyncMock(return_value=[ticket_channel, unrelated])
+        self.bot.channel = AsyncMock(return_value=category)
+        with patch.object(self.bot, 'staff_roles', return_value=[staff]):
+            await self.bot.sync_ownership_permissions()
+        overwrites = ticket_channel.edit.await_args.kwargs['overwrites']
+        self.assertEqual({target.id for target in overwrites}, {1, 99, 12, 1569278707833503776})
+        self.assertFalse(overwrites[guild.default_role].view_channel)
+        unrelated.edit.assert_not_awaited()
 
     async def test_restart_restores_interrupted_closure(self):
         self.bot.store.add_ticket(100, 1, 'general')

@@ -4,6 +4,8 @@ import copy
 import json
 import logging
 import os
+import re
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -51,10 +53,11 @@ def ticket_overwrites(guild, owner, staff_roles):
         guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True,
             read_message_history=True, attach_files=True, embed_links=True,
             manage_channels=True, manage_roles=True),
-        owner: discord.PermissionOverwrite(view_channel=True, send_messages=True,
-            read_message_history=True, attach_files=True, embed_links=True,
-            create_public_threads=False, create_private_threads=False),
     }
+    if owner is not None:
+        overwrites[owner] = discord.PermissionOverwrite(view_channel=True, send_messages=True,
+            read_message_history=True, attach_files=True, embed_links=True,
+            create_public_threads=False, create_private_threads=False)
     for role in staff_roles:
         if role == guild.default_role:
             raise ValueError('The @everyone role cannot be a ticket staff role.')
@@ -143,6 +146,7 @@ class EsportsBot(discord.Client):
         log.info('Connected as %s. Recovering any interrupted ticket closures.', self.user)
         try:
             await self.recover_closures()
+            await self.sync_ownership_permissions()
             self.ready_for_tickets = True
             await self.change_presence(activity=discord.Game(name='Esports Business | /help'))
             log.info('Ready. Run /setup in server %s to publish the panels.', self.config['guild_id'])
@@ -197,6 +201,36 @@ class EsportsBot(discord.Client):
             roles.append(role)
         return roles
 
+    async def sync_ownership_permissions(self):
+        """Restrict existing bot-created ownership tickets, even if local state was lost."""
+        category = await self.channel(self.config['tickets']['ownership']['category_id'], discord.CategoryChannel)
+        guild = category.guild
+        roles = self.staff_roles(guild, 'ownership')
+        for channel in await guild.fetch_channels():
+            if not isinstance(channel, discord.TextChannel) or channel.category_id != category.id:
+                continue
+            ticket = self.store.ticket(channel.id)
+            match = re.fullmatch(r'Esports Business \| Ownership Support \| Owner: (\d+)', channel.topic or '')
+            if ticket and ticket['kind'] == 'ownership' and ticket['status'] != 'closed':
+                owner_id = ticket['owner_id']
+            elif match:
+                owner_id = int(match.group(1))
+            else:
+                continue
+            try:
+                owner = guild.get_member(owner_id) or await guild.fetch_member(owner_id)
+            except discord.NotFound:
+                owner = None
+            async with self.lock(('ticket', channel.id)):
+                current = self.store.ticket(channel.id)
+                if current and current['status'] != 'open':
+                    continue
+                try:
+                    await channel.edit(overwrites=ticket_overwrites(guild, owner, roles),
+                                       reason='Restrict ownership tickets to the configured ownership team')
+                except discord.NotFound:
+                    continue  # It was closed while the channel list was being fetched.
+
     def register_commands(self):
         @self.tree.command(name='setup', description='Publish or update the dashboard, marketplace and ticket panels.')
         @app_commands.default_permissions(administrator=True)
@@ -206,6 +240,7 @@ class EsportsBot(discord.Client):
             async with self.setup_lock:
                 try:
                     channels = await self.preflight()
+                    await self.sync_ownership_permissions()
                 except (ValueError, discord.HTTPException) as error:
                     await respond(interaction, f'Setup could not finish: {error}')
                     return
@@ -363,14 +398,27 @@ class EsportsBot(discord.Client):
                 )
                 archive = await self.channel(self.config['channels']['transcripts'])
                 for number, path in enumerate(paths, 1):
-                    if path.stat().st_size > channel.guild.filesize_limit:
+                    # Discord previews HTML as raw source. A ZIP keeps the full transcript
+                    # downloadable while the embed provides a readable archive summary.
+                    download = path.with_suffix('.zip')
+                    with zipfile.ZipFile(download, 'w', zipfile.ZIP_DEFLATED) as zipped:
+                        zipped.write(path, arcname=path.name)
+                    if download.stat().st_size > channel.guild.filesize_limit:
                         raise ValueError('A transcript part exceeds the server upload limit.')
-                    file = discord.File(path)
+                    embed = discord.Embed(title='Ticket Transcript',
+                        description=f'**{discord.utils.escape_markdown(channel.name)}**\nDownload the ZIP below and open the HTML transcript inside.',
+                        timestamp=datetime.now(timezone.utc))
+                    embed.add_field(name='Ticket Owner', value=f'<@{ticket["owner_id"]}>', inline=True)
+                    embed.add_field(name='Category', value=self.config['tickets'][ticket['kind']]['label'], inline=True)
+                    embed.add_field(name='Closed By', value=f'<@{interaction.user.id}>', inline=True)
+                    embed.add_field(name='Claimed By', value=f'<@{ticket["claimed_by"]}>' if ticket['claimed_by'] else 'Unclaimed', inline=True)
+                    embed.add_field(name='Messages', value=str(count), inline=True)
+                    embed.add_field(name='Close Reason', value=discord.utils.escape_markdown(reason)[:1024], inline=False)
+                    embed.set_footer(text=f'Ticket ID: {channel.id} • Part {number}/{len(paths)}')
+                    file = discord.File(download)
                     try:
                         await archive.send(
-                            content=f'**Ticket transcript** • {channel.name} (`{channel.id}`)\n'
-                                    f'Owner: <@{ticket["owner_id"]}> • Type: {ticket["kind"]}\n'
-                                    f'Closed by: <@{interaction.user.id}> • {count} messages • Part {number}/{len(paths)}',
+                            embed=embed,
                             file=file,
                         )
                     finally:

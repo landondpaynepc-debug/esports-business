@@ -10,7 +10,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 - Exactly three ticket choices: **General Support**, **Ownership Support**, and **Paid Ad/SPGW**.
 - Private ticket channels with **Claim** and **Close** buttons and equivalent slash commands.
 - One open ticket per member per category, saved across restarts.
-- HTML transcripts sent to your transcript channel **before** the ticket is deleted.
+- Transcript summary embeds with downloadable HTML-in-ZIP files sent to your transcript channel **before** the ticket is deleted. ZIP downloads prevent Discord from displaying raw HTML source in chat.
 - `/warn`, `/warnings`, `/clearwarn`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/unban`, and `/purge`.
 
 ## Your server configuration
@@ -25,7 +25,8 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | General Support category | `1565668518480056430` |
 | Ownership Support category | `1565668743307067432` |
 | Paid Ad/SPGW category | `1565668672192909382` |
-| Staff role (all ticket types) | `1564325589827977330` |
+| Staff role (General Support and Paid Ad/SPGW) | `1564325589827977330` |
+| Ownership Support role | `1569278707833503776` |
 
 These values are already set in `config.json`. IDs are strings to preserve their full precision.
 
@@ -61,11 +62,11 @@ The bot stays online only while this process is running. This repository contain
 
 ## Staff and privacy
 
-The supplied staff role is already configured for **all three** ticket categories, including Ownership Support. Server administrators always have access. If ownership tickets should be leadership-only, replace `tickets.ownership.staff_role_ids` with your ownership role ID before opening tickets.
+General Support and Paid Ad/SPGW use staff role `1564325589827977330`. **Ownership Support uses only role `1569278707833503776` for staff access.** The ticket opener and bot retain access, and Discord administrators always bypass channel restrictions. On startup and `/setup`, existing bot-created ownership tickets in the configured ownership category have their permissions replaced to match this restriction.
 
 Ticket channels explicitly deny `@everyone` access and allow only the opener, the bot, the configured roles, and administrators. Category permissions are not inherited. Staff roles provide ticket access; moderation commands still require the corresponding Discord moderation permissions.
 
-Edit `staff_role_ids` in `config.json` and restart to change ticket staff. **Role changes apply to new ticket channel permissions.** Update existing ticket permissions manually when changing roles. An empty staff list means administrators only. Keep the transcript channel restricted to trusted staff; the bot does not modify its existing permissions.
+Edit `staff_role_ids` in `config.json` and restart to change ticket staff. Ownership ticket permissions are refreshed automatically; general and paid ticket role changes apply to new channels, so update existing channels manually for those types. An empty staff list means administrators only. Keep the transcript channel restricted to trusted staff; the bot does not modify its existing permissions. Existing transcript posts are unchanged; new closures use the embed format.
 
 ## Payments and panel text
 
@@ -96,7 +97,7 @@ Moderation respects both the moderator's and bot's role hierarchy. Purge is disa
 ## Transcripts and persistence
 
 - Tickets close **manually**. There is no automatic 24-hour closure.
-- Closing temporarily disables non-administrator sending, exports available history, uploads every HTML part, then deletes the channel. Administrators bypass channel denies; avoid sending while a ticket is closing.
+- Closing temporarily disables non-administrator sending, exports available history, uploads every part as a ZIP with a summary embed, then deletes the channel. Administrators bypass channel denies; avoid sending while a ticket is closing. Download and extract the ZIP to read the HTML transcript in a browser.
 - If export/upload fails, the bot keeps the channel and attempts to restore permissions. If the process crashes mid-close, restarting restores the ticket for a retry. A retry after partial upload may produce duplicate archive parts.
 - Transcripts include message text, author IDs, timestamps, current embeds/components, reply references, and attachment links. Deleted messages and previous edit versions cannot be recovered. Attachment links can expire; binary attachments are not downloaded.
 - Local transcript backups and SQLite state live in `data/`. Keep that directory private, back it up, and use persistent storage on a host. Do not delete it while the bot is in use.
