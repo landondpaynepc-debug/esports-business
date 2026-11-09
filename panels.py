@@ -152,7 +152,7 @@ def panel(bot, kind):
     else:
         raise ValueError(f'Unknown panel: {kind}')
     children.extend([ui.Separator(), ui.MediaGallery(discord.MediaGalleryItem('attachment://footer.png'))])
-    view.add_item(ui.Container(*children, accent_colour=RED))
+    view.add_item(ui.Container(*children))
     return view
 
 
