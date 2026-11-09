@@ -1,0 +1,36 @@
+{
+  "name": "Esports Business",
+  "guild_id": "1254579248237379604",
+  "channels": {
+    "dashboard": "1564325646761467956",
+    "marketplace": "1564325648208629820",
+    "support": "1564325660313391316",
+    "transcripts": "1565667801908387853"
+  },
+  "tickets": {
+    "general": {
+      "label": "General Support",
+      "category_id": "1565668518480056430",
+      "staff_role_ids": [
+        "1564325589827977330"
+      ]
+    },
+    "ownership": {
+      "label": "Ownership Support",
+      "category_id": "1565668743307067432",
+      "staff_role_ids": [
+        "1564325589827977330"
+      ]
+    },
+    "paid": {
+      "label": "Paid Ad/SPGW",
+      "category_id": "1565668672192909382",
+      "staff_role_ids": [
+        "1564325589827977330"
+      ]
+    }
+  },
+  "paypal_url": "",
+  "marketplace_text": "## Official Marketplace\n\n**Subscriptions**\n- **$4.00 / month** — your own channel and an everyone ping every 2 weeks.\n- **Popular: $17.99 / 6 months** — your own channel and an everyone ping every 2 weeks.\n- **$25.99 / year** — your own channel, an exclusive role, and 3 everyone pings per month.\n\n**One-time payments**\n- **$1.99** — advertisement, no ping\n- **$5.00** — here ping\n- **$7.99** — everyone ping\n- **$12.50** — channel, no ping\n- **$13.99** — channel with here ping\n- **$16.50** — channel with everyone ping",
+  "rules_text": "## Community Guidelines\n\n**Respect**\nTreat everyone respectfully. Discrimination, harassment, and offensive behaviour are not allowed.\n\n**NSFW**\nKeep all content appropriate. No explicit content, unsafe links, or suspicious files.\n\n**Common Sense**\nUse good judgement. Staff may address harmful behaviour even if it is not listed here.\n\n**Staff Instructions**\nFollow staff directions. Raise disagreements respectfully in a support ticket.\n\n**No Spam**\nDo not spam messages, mentions, or unsolicited promotions.\n\n**Maintain Relevance**\nUse the correct channels and keep discussions relevant.\n\n**Hacking**\nHacking, malicious tools, and account theft are prohibited.\n\n**DM Advertising**\nDo not send unsolicited advertisements to server members.\n\n**Threatening**\nThreats against members or the server are prohibited.\n\n**Trolling**\nDo not deliberately disrupt discussions or provoke other members.\n\n**Discord Guidelines**\nFollow Discord's Terms of Service and Community Guidelines."
+}
