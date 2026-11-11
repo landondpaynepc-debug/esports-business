@@ -6,12 +6,14 @@ import logging
 import os
 import re
 import zipfile
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
 from discord import app_commands
+from discord.ext import tasks
 from dotenv import load_dotenv
 
 from panels import CloseForm, TicketControls, panel, respond, RED
@@ -138,6 +140,26 @@ class EsportsBot(discord.Client):
         guild = discord.Object(id=int(self.config['guild_id']))
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
+        self.member_count_status.start()
+
+    @tasks.loop(minutes=1)
+    async def member_count_status(self):
+        if not self.is_ready():
+            return
+        try:
+            # Fetch fresh counts without requiring the privileged Members intent.
+            guild = await self.fetch_guild(int(self.config['guild_id']), with_counts=True)
+            count = guild.approximate_member_count
+            if count is not None:
+                await self.change_presence(activity=discord.Activity(
+                    type=discord.ActivityType.watching, name=f'{count:,} members!',
+                ))
+        except (discord.HTTPException, discord.ConnectionClosed, OSError):
+            log.warning('Could not refresh the member-count status; retrying next minute.', exc_info=True)
+
+    @member_count_status.before_loop
+    async def before_member_count_status(self):
+        await self.wait_until_ready()
 
     async def on_ready(self):
         if self.started:
@@ -148,13 +170,17 @@ class EsportsBot(discord.Client):
             await self.recover_closures()
             await self.sync_ownership_permissions()
             self.ready_for_tickets = True
-            await self.change_presence(activity=discord.Game(name='Esports Business | /help'))
             log.info('Ready. Run /setup in server %s to publish the panels.', self.config['guild_id'])
         except Exception:
             self.started = False
             log.exception('Startup recovery failed. Fix permissions and restart the bot.')
 
     async def close(self):
+        task = self.member_count_status.get_task()
+        self.member_count_status.cancel()
+        if task is not None:
+            with suppress(asyncio.CancelledError):
+                await task
         await super().close()
         self.store.close()
 

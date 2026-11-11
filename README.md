@@ -4,6 +4,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 
 ## Included
 
+- **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
 - Your original banner and footer images on all public panels.
 - Marketplace prices from your reference, with a button to open a purchase ticket.

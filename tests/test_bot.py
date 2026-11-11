@@ -102,6 +102,28 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                   response=NS(defer=AsyncMock(), is_done=lambda: True),
                   followup=NS(send=AsyncMock()))
 
+    async def test_status_refreshes_server_count_in_watching_activity(self):
+        self.bot.is_ready = Mock(return_value=True)
+        self.bot.fetch_guild = AsyncMock(side_effect=[NS(approximate_member_count=1234), NS(approximate_member_count=1235)])
+        self.bot.change_presence = AsyncMock()
+        await self.bot.member_count_status()
+        await self.bot.member_count_status()
+        activities = [call.kwargs['activity'] for call in self.bot.change_presence.await_args_list]
+        self.assertEqual([activity.name for activity in activities], ['1,234 members!', '1,235 members!'])
+        self.assertTrue(all(activity.type == discord.ActivityType.watching for activity in activities))
+        self.bot.fetch_guild.assert_awaited_with(int(self.bot.config['guild_id']), with_counts=True)
+        self.assertEqual(self.bot.member_count_status.minutes, 1)
+
+    async def test_status_recovers_after_temporary_failure(self):
+        self.bot.is_ready = Mock(return_value=True)
+        self.bot.fetch_guild = AsyncMock(side_effect=[OSError('Temporary network failure'), NS(approximate_member_count=42)])
+        self.bot.change_presence = AsyncMock()
+        with self.assertLogs('esports', level='WARNING'):
+            await self.bot.member_count_status()
+        self.bot.change_presence.assert_not_awaited()
+        await self.bot.member_count_status()
+        self.assertEqual(self.bot.change_presence.await_args.kwargs['activity'].name, '42 members!')
+
     async def test_all_panels_serialize_and_buttons_persist(self):
         ids = []
         for kind in ('dashboard', 'marketplace', 'support', 'rules'):
