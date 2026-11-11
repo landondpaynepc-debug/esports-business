@@ -173,7 +173,7 @@ class EsportsBot(discord.Client):
             log.info('Ready. Run /setup in server %s to publish the panels.', self.config['guild_id'])
         except Exception:
             self.started = False
-            log.exception('Startup recovery failed. Fix permissions and restart the bot.')
+            log.exception('Startup initialization failed. Check the exception below and restart after fixing it.')
 
     async def close(self):
         task = self.member_count_status.get_task()
@@ -232,7 +232,9 @@ class EsportsBot(discord.Client):
         category = await self.channel(self.config['tickets']['ownership']['category_id'], discord.CategoryChannel)
         guild = category.guild
         roles = self.staff_roles(guild, 'ownership')
-        for channel in await guild.fetch_channels():
+        # The gateway has already populated known text channels before on_ready.
+        # Fetching ALL channels fails if Discord returns any newer, unsupported type.
+        for channel in list(guild.text_channels):
             if not isinstance(channel, discord.TextChannel) or channel.category_id != category.id:
                 continue
             ticket = self.store.ticket(channel.id)
@@ -480,6 +482,10 @@ class EsportsBot(discord.Client):
 
 
 def main():
+    log.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s'))
+    log.addHandler(handler)
     load_dotenv(BASE / '.env')
     token = os.getenv('DISCORD_TOKEN', '').strip()
     if not token or token == 'replace_with_your_new_bot_token':

@@ -221,7 +221,9 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         unrelated.category_id = 500
         unrelated.topic = 'Unrelated channel'
         unrelated.edit = AsyncMock()
-        guild.fetch_channels = AsyncMock(return_value=[ticket_channel, unrelated])
+        guild.text_channels = [ticket_channel, unrelated]
+        guild.fetch_channels = AsyncMock(side_effect=discord.InvalidData(
+            'Unknown channel type 20 for channel ID 1569462259506225216.'))
         self.bot.channel = AsyncMock(return_value=category)
         with patch.object(self.bot, 'staff_roles', return_value=[staff]):
             await self.bot.sync_ownership_permissions()
@@ -229,6 +231,29 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({target.id for target in overwrites}, {1, 99, 12, 1569278707833503776})
         self.assertFalse(overwrites[guild.default_role].view_channel)
         unrelated.edit.assert_not_awaited()
+        guild.fetch_channels.assert_not_awaited()
+
+    async def test_unknown_server_channel_does_not_block_ticket_startup(self):
+        guild = NS(text_channels=[], fetch_channels=AsyncMock(side_effect=discord.InvalidData(
+            'Unknown channel type 20 for channel ID 1569462259506225216.')))
+        self.bot.channel = AsyncMock(return_value=NS(id=500, guild=guild))
+        self.bot.recover_closures = AsyncMock()
+        self.bot.ready_for_tickets = False
+        with patch.object(self.bot, 'staff_roles', return_value=[]):
+            await self.bot.on_ready()
+        self.assertTrue(self.bot.ready_for_tickets)
+        self.assertTrue(self.bot.started)
+        guild.fetch_channels.assert_not_awaited()
+
+    async def test_real_ownership_permission_failure_still_blocks_startup(self):
+        self.bot.recover_closures = AsyncMock()
+        self.bot.sync_ownership_permissions = AsyncMock(side_effect=discord.Forbidden(
+            NS(status=403, reason='Forbidden'), 'Missing Permissions'))
+        self.bot.ready_for_tickets = False
+        with self.assertLogs('esports', level='ERROR'):
+            await self.bot.on_ready()
+        self.assertFalse(self.bot.ready_for_tickets)
+        self.assertFalse(self.bot.started)
 
     async def test_restart_restores_interrupted_closure(self):
         self.bot.store.add_ticket(100, 1, 'general')
