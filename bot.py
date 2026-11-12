@@ -131,7 +131,7 @@ class EsportsBot(discord.Client):
         return self.locks.setdefault(key, asyncio.Lock())
 
     def assets(self):
-        return [discord.File(BASE / 'assets' / name, filename=name) for name in ('banner.png', 'footer.png')]
+        return [discord.File(BASE / 'assets' / 'banner.gif', filename='banner.gif')]
 
     async def setup_hook(self):
         for kind in ('dashboard', 'marketplace', 'support'):

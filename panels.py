@@ -1,4 +1,4 @@
-"""Discord Components V2 panels using the supplied banner and footer."""
+"""Discord Components V2 panels using the supplied animated top banner."""
 import logging
 import discord
 from discord import ui
@@ -103,7 +103,7 @@ class RulesButton(ui.Button):
 def panel(bot, kind):
     cfg = bot.config
     view = SafeView(timeout=None)
-    children = [ui.MediaGallery(discord.MediaGalleryItem('attachment://banner.png')), ui.Separator()]
+    children = [ui.MediaGallery(discord.MediaGalleryItem('attachment://banner.gif')), ui.Separator()]
     if kind == 'dashboard':
         children.append(ui.TextDisplay(
             '# Esports Business\nWelcome to the community dashboard.\n\n'
@@ -151,7 +151,6 @@ def panel(bot, kind):
         children.append(ui.TextDisplay(cfg['rules_text']))
     else:
         raise ValueError(f'Unknown panel: {kind}')
-    children.extend([ui.Separator(), ui.MediaGallery(discord.MediaGalleryItem('attachment://footer.png'))])
     view.add_item(ui.Container(*children))
     return view
 

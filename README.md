@@ -6,7 +6,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 
 - **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
-- Your original banner and footer images on all public panels.
+- Your animated GIF at the top of every panel, with no bottom banners or colored side stripes. The GIF is bundled in `assets/banner.gif` so the bot does not depend on the original Discord download link.
 - Marketplace prices from your reference, with a button to open a purchase ticket.
 - Exactly three ticket choices: **General Support**, **Ownership Support**, and **Paid Ad/SPGW**.
 - Private ticket channels with **Claim** and **Close** buttons and equivalent slash commands.
@@ -71,7 +71,7 @@ Edit `staff_role_ids` in `config.json` and restart to change ticket staff. Owner
 
 ## Payments and panel text
 
-The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your provided artwork is included unchanged, including its original Esports Advertising text.
+The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your provided animated GIF is included unchanged. After deploying banner updates, run `/setup` to replace the images on existing public panel messages.
 
 `paypal_url` is blank because the reference image's recipient was not confirmed. Add your own HTTPS PayPal link to display a payment button, then restart and rerun `/setup`. Without it, customers open a Paid Ad/SPGW ticket to arrange payment with staff. The bot does not process payments, confirm purchases automatically, or schedule advertising pings.
 

@@ -129,8 +129,9 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         for kind in ('dashboard', 'marketplace', 'support', 'rules'):
             view = panel(self.bot, kind)
             payload = json.dumps(view.to_components())
-            self.assertIn('attachment://banner.png', payload)
-            self.assertIn('attachment://footer.png', payload)
+            self.assertIn('attachment://banner.gif', payload)
+            self.assertNotIn('attachment://footer.png', payload)
+            self.assertEqual(sum(isinstance(item, discord.ui.MediaGallery) for item in view.walk_children()), 1)
             self.assertLessEqual(view.content_length(), 4000)
             self.assertLessEqual(view.total_children_count, 40)
             self.assertTrue(view.is_persistent())
