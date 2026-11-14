@@ -4,6 +4,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 
 ## Included
 
+- Automatic welcome panels with your custom emoji, member count, Dashboard link, and 10 randomized greetings without consecutive repeats during a running session.
 - **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
 - Your animated GIF at the top of every panel, with no bottom banners or colored side stripes. The GIF is bundled in `assets/banner.gif` so the bot does not depend on the original Discord download link.
@@ -23,6 +24,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | Marketplace | `1564325648208629820` |
 | Ticket support panel | `1564325660313391316` |
 | Transcripts | `1565667801908387853` |
+| Welcome messages | `1564325669264167059` |
 | General Support category | `1565668518480056430` |
 | Ownership Support category | `1565668743307067432` |
 | Paid Ad/SPGW category | `1565668672192909382` |
@@ -34,7 +36,7 @@ These values are already set in `config.json`. IDs are strings to preserve their
 ## Start the bot
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Esports Business**. The code cannot change the application's display name.
-2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent**, which allows ticket transcripts to contain message text. The bot does not require the privileged Server Members or Presence intents.
+2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent** for ticket transcripts and **Server Members Intent** for automatic welcomes. The Presence intent is not required.
 3. Install the application in your server with the `bot` and `applications.commands` scopes. Give it **View Channels**, **Send Messages**, **Read Message History**, **Embed Links**, **Attach Files**, **Manage Channels**, **Manage Roles** (needed to update channel permission overwrites), **Manage Messages**, **Moderate Members**, **Kick Members**, and **Ban Members**. Move its role above members it should moderate and above the configured staff role. Administrator permission is not required.
 4. Download or clone this repository and open a terminal in its folder.
 5. Install the dependencies:
@@ -61,6 +63,20 @@ These values are already set in `config.json`. IDs are strings to preserve their
 
 The bot stays online only while this process is running. This repository contains the code; GitHub does not run it automatically.
 
+## Welcome messages
+
+New joins in your server receive a compact panel in channel `1564325669264167059`:
+
+> Welcome @member to **Esports Business**! We hope you enjoy your stay.
+
+The actual server name is used automatically. Each panel starts with `<:icon:1569075326540185700>` and includes a disabled **Members: 251** button showing the total count at join time, plus a **Dashboard** link to `https://discord.com/channels/1254579248237379604/1564325646761467956`. These panels have no banner images or colored side stripe.
+
+The trailing sentence is randomly chosen from 10 messages in `welcome.py`. Consecutive welcomes use different sentences while the process is running. Old welcome messages keep their original member count; only new joins receive a welcome, with no mass greeting on startup.
+
+Enable **Server Members Intent** under **Discord Developer Portal → your application → Bot → Privileged Gateway Intents**, save, then restart the bot. If Discord rejects the new intent, the bot reconnects with welcomes disabled so the existing ticket and moderation features can stay online. Enable the intent and restart to turn welcomes on. Message Content Intent must remain enabled for the existing features.
+
+The bot needs View Channel and Send Messages in the welcome channel, plus Use External Emojis if the custom icon belongs to another server. Administrators can run **`/welcome-preview`** to see a private preview; it does not post to the welcome channel or require someone to leave and rejoin. No `/setup` is needed to activate welcomes after a successful restart with the intent enabled.
+
 ## Staff and privacy
 
 General Support and Paid Ad/SPGW use staff role `1564325589827977330`. **Ownership Support uses only role `1569278707833503776` for staff access.** The ticket opener and bot retain access, and Discord administrators always bypass channel restrictions. On startup and `/setup`, existing bot-created ownership tickets in the configured ownership category have their permissions replaced to match this restriction.
@@ -81,6 +97,7 @@ The prices from the reference are already in `config.json`. Edit `marketplace_te
 | --- | --- | --- |
 | `/help` | Everyone | Commands and support links |
 | `/setup` | Administrators | Publish/update panels |
+| `/welcome-preview` | Administrators | Preview the randomized welcome panel privately |
 | `/claim` | This ticket type's staff or administrators | Claim the current ticket |
 | `/close` | Ticket opener, this ticket's staff, or administrators | Enter a reason, archive, then delete the ticket |
 | `/warn member reason` | Manage Messages | Save a warning |
@@ -113,6 +130,6 @@ python -m unittest discover -s tests -v
 
 The tests run without a token and cover permissions, persistent UI, ticket state, and transcript success/failure. To verify live Discord behaviour, start with a fresh token, run `/setup`, open each ticket type with a normal member account, claim as staff, send a test message, and close. Confirm the HTML arrives in the transcript channel before the ticket disappears. Also test a nonstaff account cannot see another member's ticket.
 
-If login fails, check the new token. If Discord reports privileged intents are disallowed, enable Message Content Intent. If an action is forbidden, check channel/category overwrites and bot role position. If slash commands do not appear, check the bot invitation scopes and startup console.
+If login fails, check the new token. If Discord reports privileged intents are disallowed, enable Message Content Intent and Server Members Intent. If an action is forbidden, check channel/category overwrites and bot role position. If slash commands do not appear, check the bot invitation scopes and startup console.
 
 Built with [discord.py](https://discordpy.readthedocs.io/en/stable/) and its [Components V2 UI](https://discordpy.readthedocs.io/en/stable/interactions/api.html#bot-ui-kit).

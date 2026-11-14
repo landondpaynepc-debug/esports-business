@@ -1,6 +1,10 @@
 {
   "name": "Esports Business",
   "guild_id": "1254579248237379604",
+  "welcome": {
+    "channel_id": "1564325669264167059",
+    "icon": "<:icon:1569075326540185700>"
+  },
   "channels": {
     "dashboard": "1564325646761467956",
     "marketplace": "1564325648208629820",

@@ -18,6 +18,7 @@ from moderation import target_error
 from panels import panel, TicketControls
 from storage import Store
 from transcripts import export_transcript, render_message
+from welcome import WELCOME_MESSAGES, choose_greeting, welcome_panel
 
 
 class StoreTests(unittest.TestCase):
@@ -142,7 +143,66 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(item.disabled)
         self.assertEqual(len(ids), len(set(ids)))
         self.assertTrue(TicketControls(self.bot).is_persistent())
-        self.assertEqual(len(self.bot.tree.get_commands()), 13)
+        self.assertEqual(len(self.bot.tree.get_commands()), 14)
+
+    async def test_welcome_panel_matches_requested_layout(self):
+        member = NS(id=12, mention='<@12>', guild=NS(name='Esports Business'))
+        view = welcome_panel(member, self.bot.config, WELCOME_MESSAGES[0], 251)
+        payload = json.dumps(view.to_components())
+        self.assertIn('<:icon:1569075326540185700>', payload)
+        self.assertIn('Welcome <@12> to **Esports Business**! We hope you enjoy your stay.', payload)
+        self.assertIsNone(view.children[0].accent_colour)
+        buttons = [item for item in view.walk_children() if isinstance(item, discord.ui.Button)]
+        self.assertEqual(buttons[0].label, 'Members: 251')
+        self.assertTrue(buttons[0].disabled)
+        self.assertEqual(buttons[1].url, 'https://discord.com/channels/1254579248237379604/1564325646761467956')
+
+    async def test_join_sends_to_welcome_channel_and_only_mentions_joiner(self):
+        member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
+                                                   name='Esports Business', member_count=251))
+        channel = NS(send=AsyncMock())
+        self.bot.channel = AsyncMock(return_value=channel)
+        await self.bot.on_member_join(member)
+        first = self.bot.last_welcome_greeting
+        await self.bot.on_member_join(member)
+        self.assertNotEqual(first, self.bot.last_welcome_greeting)
+        self.bot.channel.assert_awaited_with('1564325669264167059')
+        mentions = channel.send.await_args.kwargs['allowed_mentions'].to_dict()
+        self.assertEqual(mentions['users'], [12])
+        self.assertNotIn('everyone', mentions.get('parse', []))
+        self.assertNotIn('roles', mentions.get('parse', []))
+        self.assertTrue(self.bot.intents.members)
+
+    async def test_joins_in_other_servers_are_ignored(self):
+        self.bot.channel = AsyncMock()
+        await self.bot.on_member_join(NS(guild=NS(id=123)))
+        self.bot.channel.assert_not_awaited()
+
+    async def test_welcome_send_failure_does_not_disable_tickets(self):
+        member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
+                                                   name='Esports Business', member_count=251))
+        self.bot.channel = AsyncMock(side_effect=discord.Forbidden(NS(status=403, reason='Forbidden'), 'Missing Permissions'))
+        with self.assertLogs('esports', level='ERROR'):
+            await self.bot.on_member_join(member)
+        self.assertTrue(self.bot.ready_for_tickets)
+        self.assertIsNone(self.bot.last_welcome_greeting)
+
+    async def test_welcome_fallback_keeps_message_content_intent(self):
+        fallback = EsportsBot(load_config(), Path(self.tmp.name) / 'fallback.db', enable_welcomes=False)
+        try:
+            self.assertFalse(fallback.intents.members)
+            self.assertTrue(fallback.intents.message_content)
+        finally:
+            await fallback.close()
+
+    async def test_ten_distinct_random_greetings_avoid_immediate_repeat(self):
+        self.assertEqual(len(WELCOME_MESSAGES), 10)
+        self.assertEqual(len(set(WELCOME_MESSAGES)), 10)
+        with patch('welcome.random.choice', side_effect=lambda options: options[0]) as choose:
+            for previous in WELCOME_MESSAGES:
+                selected = choose_greeting(previous)
+                self.assertNotEqual(selected, previous)
+                self.assertEqual(set(choose.call_args.args[0]), set(WELCOME_MESSAGES) - {previous})
 
     async def test_ticket_menu_matches_reference(self):
         view = panel(self.bot, 'support')

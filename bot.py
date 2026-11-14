@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from panels import CloseForm, TicketControls, panel, respond, RED
 from storage import Store
 from transcripts import export_transcript
+from welcome import choose_greeting, welcome_panel
 
 BASE = Path(__file__).resolve().parent
 log = logging.getLogger('esports')
@@ -27,6 +28,7 @@ log = logging.getLogger('esports')
 def load_config():
     cfg = json.loads((BASE / 'config.json').read_text(encoding='utf-8'))
     int(cfg['guild_id'])
+    int(cfg['welcome']['channel_id'])
     for value in cfg['channels'].values():
         int(value)
     for kind in ('general', 'ownership', 'paid'):
@@ -112,10 +114,12 @@ class GuildTree(app_commands.CommandTree):
 
 
 class EsportsBot(discord.Client):
-    def __init__(self, config, database=None):
+    def __init__(self, config, database=None, *, enable_welcomes=True):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(intents=intents, allowed_mentions=discord.AllowedMentions.none())
+        intents.members = enable_welcomes
+        super().__init__(intents=intents, allowed_mentions=discord.AllowedMentions.none(),
+                         chunk_guilds_at_startup=False)
         self.config = config
         self.store = Store(database or BASE / 'data' / 'bot.sqlite3')
         self.tree = GuildTree(self)
@@ -123,6 +127,7 @@ class EsportsBot(discord.Client):
         self.setup_lock = asyncio.Lock()
         self.started = False
         self.ready_for_tickets = False
+        self.last_welcome_greeting = None
         from moderation import register_moderation
         register_moderation(self)
         self.register_commands()
@@ -160,6 +165,23 @@ class EsportsBot(discord.Client):
     @member_count_status.before_loop
     async def before_member_count_status(self):
         await self.wait_until_ready()
+
+    async def on_member_join(self, member):
+        if member.guild.id != int(self.config['guild_id']):
+            return
+        # Serialize joins so even simultaneous arrivals get different greetings.
+        async with self.lock('welcome'):
+            greeting = choose_greeting(self.last_welcome_greeting)
+            try:
+                channel = await self.channel(self.config['welcome']['channel_id'])
+                await channel.send(
+                    view=welcome_panel(member, self.config, greeting, member.guild.member_count),
+                    allowed_mentions=discord.AllowedMentions(users=[member], roles=False,
+                                                             everyone=False, replied_user=False),
+                )
+                self.last_welcome_greeting = greeting
+            except (discord.DiscordException, ValueError):
+                log.exception('Could not welcome member %s. Check the welcome channel permissions.', member.id)
 
     async def on_ready(self):
         if self.started:
@@ -260,6 +282,16 @@ class EsportsBot(discord.Client):
                     continue  # It was closed while the channel list was being fetched.
 
     def register_commands(self):
+        @self.tree.command(name='welcome-preview', description='Preview the welcome panel privately (administrators only).')
+        @app_commands.default_permissions(administrator=True)
+        @app_commands.checks.has_permissions(administrator=True)
+        async def welcome_preview(interaction: discord.Interaction):
+            await interaction.response.send_message(
+                view=welcome_panel(interaction.user, self.config, choose_greeting(),
+                                   interaction.guild.member_count),
+                ephemeral=True, allowed_mentions=discord.AllowedMentions.none(),
+            )
+
         @self.tree.command(name='setup', description='Publish or update the dashboard, marketplace and ticket panels.')
         @app_commands.default_permissions(administrator=True)
         @app_commands.checks.has_permissions(administrator=True)
@@ -301,7 +333,7 @@ class EsportsBot(discord.Client):
                 f'Support: <#{self.config["channels"]["support"]}>\n\n'
                 '**Moderation:** /warn, /warnings, /clearwarn, /timeout, /untimeout, /kick, /ban, /unban, /purge\n'
                 '**Tickets:** /claim, /close (also available as buttons)\n'
-                '**Administrators:** /setup\nCareers is coming soon.')
+                '**Administrators:** /setup, /welcome-preview\nCareers is coming soon.')
 
         @self.tree.command(name='claim', description='Claim the current support ticket (ticket staff only).')
         async def claim(interaction: discord.Interaction):
@@ -490,8 +522,16 @@ def main():
     token = os.getenv('DISCORD_TOKEN', '').strip()
     if not token or token == 'replace_with_your_new_bot_token':
         raise SystemExit('Add your NEW bot token to a private .env file. See README.md. Never commit a real token.')
-    bot = EsportsBot(load_config())
-    bot.run(token, log_level=logging.INFO)
+    config = load_config()
+    bot = EsportsBot(config)
+    try:
+        bot.run(token, log_level=logging.INFO)
+    except discord.PrivilegedIntentsRequired:
+        log.warning('Welcome messages need Server Members Intent enabled in the Discord Developer Portal. '
+                    'Reconnecting with welcomes disabled so existing features remain available. '
+                    'Enable the intent and restart to activate welcomes.')
+        bot = EsportsBot(config, enable_welcomes=False)
+        bot.run(token, log_level=logging.INFO)
 
 
 if __name__ == '__main__':
