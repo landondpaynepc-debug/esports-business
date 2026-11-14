@@ -20,6 +20,7 @@ from panels import CloseForm, TicketControls, panel, respond, RED
 from storage import Store
 from transcripts import export_transcript
 from welcome import choose_greeting, welcome_panel
+from verification import unverified_role, verification_panel
 
 BASE = Path(__file__).resolve().parent
 log = logging.getLogger('esports')
@@ -29,6 +30,7 @@ def load_config():
     cfg = json.loads((BASE / 'config.json').read_text(encoding='utf-8'))
     int(cfg['guild_id'])
     int(cfg['welcome']['channel_id'])
+    int(cfg['verification']['role_id'])
     for value in cfg['channels'].values():
         int(value)
     for kind in ('general', 'ownership', 'paid'):
@@ -114,10 +116,10 @@ class GuildTree(app_commands.CommandTree):
 
 
 class EsportsBot(discord.Client):
-    def __init__(self, config, database=None, *, enable_welcomes=True):
+    def __init__(self, config, database=None, *, enable_member_events=True):
         intents = discord.Intents.default()
         intents.message_content = True
-        intents.members = enable_welcomes
+        intents.members = enable_member_events
         super().__init__(intents=intents, allowed_mentions=discord.AllowedMentions.none(),
                          chunk_guilds_at_startup=False)
         self.config = config
@@ -142,6 +144,7 @@ class EsportsBot(discord.Client):
         for kind in ('dashboard', 'marketplace', 'support'):
             self.add_view(panel(self, kind))
         self.add_view(TicketControls(self))
+        self.add_view(verification_panel(self))
         guild = discord.Object(id=int(self.config['guild_id']))
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
@@ -169,6 +172,12 @@ class EsportsBot(discord.Client):
     async def on_member_join(self, member):
         if member.guild.id != int(self.config['guild_id']):
             return
+        try:
+            async with self.lock(('verification', member.id)):
+                role = unverified_role(member.guild, self.config)
+                await member.add_roles(role, reason='Assign new-member role on joining', atomic=True)
+        except (discord.DiscordException, ValueError):
+            log.exception('Could not assign the new-member role to %s. Check Manage Roles and role order.', member.id)
         # Serialize joins so even simultaneous arrivals get different greetings.
         async with self.lock('welcome'):
             greeting = choose_greeting(self.last_welcome_greeting)
@@ -182,6 +191,29 @@ class EsportsBot(discord.Client):
                 self.last_welcome_greeting = greeting
             except (discord.DiscordException, ValueError):
                 log.exception('Could not welcome member %s. Check the welcome channel permissions.', member.id)
+
+    async def verify_member(self, interaction):
+        if not await self.valid_interaction(interaction):
+            return
+        await interaction.response.defer(ephemeral=True)
+        async with self.lock(('verification', interaction.user.id)):
+            try:
+                role = unverified_role(interaction.guild, self.config)
+                member = await interaction.guild.fetch_member(interaction.user.id)
+                if role.id not in {item.id for item in member.roles}:
+                    await respond(interaction, 'You’re already verified—your new-member role is not assigned.')
+                    return
+                await member.remove_roles(role, reason='Member verified using the Verify button', atomic=True)
+            except ValueError as error:
+                await respond(interaction, str(error))
+                return
+            except discord.Forbidden:
+                await respond(interaction, 'I couldn’t remove the role. Ask an administrator to give me Manage Roles and move my role above the new-member role.')
+                return
+            except discord.NotFound:
+                await respond(interaction, 'Your membership or the new-member role could not be found. Please try again.')
+                return
+            await respond(interaction, 'You’re verified! Your new-member role has been removed.')
 
     async def on_ready(self):
         if self.started:
@@ -282,6 +314,44 @@ class EsportsBot(discord.Client):
                     continue  # It was closed while the channel list was being fetched.
 
     def register_commands(self):
+        @self.tree.command(name='verification-setup', description='Post or update the Verify panel in a chosen channel.')
+        @app_commands.default_permissions(administrator=True)
+        @app_commands.checks.has_permissions(administrator=True)
+        async def verification_setup(interaction: discord.Interaction, channel: discord.TextChannel | None = None):
+            destination = channel or interaction.channel
+            if not isinstance(destination, discord.TextChannel) or destination.guild.id != interaction.guild_id:
+                await respond(interaction, 'Choose a text channel in this server for the verification panel.')
+                return
+            if not self.intents.members:
+                await respond(interaction, 'Enable Server Members Intent in the Discord Developer Portal, then restart the bot so new members receive their role automatically.')
+                return
+            await interaction.response.defer(ephemeral=True)
+            try:
+                unverified_role(interaction.guild, self.config)
+            except ValueError as error:
+                await respond(interaction, str(error))
+                return
+            async with self.setup_lock:
+                key = f'verification:{destination.id}'
+                row = self.store.db.execute('SELECT message_id FROM panels WHERE name=?', (key,)).fetchone()
+                message = None
+                if row:
+                    try:
+                        message = await destination.fetch_message(row['message_id'])
+                    except discord.NotFound:
+                        pass
+                files = self.assets()
+                try:
+                    if message:
+                        await message.edit(view=verification_panel(self), attachments=files)
+                    else:
+                        message = await destination.send(view=verification_panel(self), files=files)
+                        self.store.execute('INSERT OR REPLACE INTO panels VALUES(?,?)', (key, message.id))
+                finally:
+                    for file in files:
+                        file.close()
+            await respond(interaction, f'Verification panel posted in {destination.mention}. New joins get the new-member role; Verify removes it. Make sure that role can view this channel.')
+
         @self.tree.command(name='welcome-preview', description='Preview the welcome panel privately (administrators only).')
         @app_commands.default_permissions(administrator=True)
         @app_commands.checks.has_permissions(administrator=True)
@@ -333,7 +403,7 @@ class EsportsBot(discord.Client):
                 f'Support: <#{self.config["channels"]["support"]}>\n\n'
                 '**Moderation:** /warn, /warnings, /clearwarn, /timeout, /untimeout, /kick, /ban, /unban, /purge\n'
                 '**Tickets:** /claim, /close (also available as buttons)\n'
-                '**Administrators:** /setup, /welcome-preview\nCareers is coming soon.')
+                '**Administrators:** /setup, /welcome-preview, /verification-setup\nCareers is coming soon.')
 
         @self.tree.command(name='claim', description='Claim the current support ticket (ticket staff only).')
         async def claim(interaction: discord.Interaction):
@@ -527,10 +597,10 @@ def main():
     try:
         bot.run(token, log_level=logging.INFO)
     except discord.PrivilegedIntentsRequired:
-        log.warning('Welcome messages need Server Members Intent enabled in the Discord Developer Portal. '
-                    'Reconnecting with welcomes disabled so existing features remain available. '
-                    'Enable the intent and restart to activate welcomes.')
-        bot = EsportsBot(config, enable_welcomes=False)
+        log.warning('Welcome messages and automatic verification-role assignment need Server Members Intent '
+                    'enabled in the Discord Developer Portal. Reconnecting with join features disabled '
+                    'so ticket and moderation features remain available. Enable the intent and restart.')
+        bot = EsportsBot(config, enable_member_events=False)
         bot.run(token, log_level=logging.INFO)
 
 

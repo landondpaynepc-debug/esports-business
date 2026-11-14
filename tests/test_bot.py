@@ -8,7 +8,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace as NS
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import discord
 
@@ -19,9 +19,25 @@ from panels import panel, TicketControls
 from storage import Store
 from transcripts import export_transcript, render_message
 from welcome import WELCOME_MESSAGES, choose_greeting, welcome_panel
+from verification import unverified_role, verification_panel
 
 
 class StoreTests(unittest.TestCase):
+    def test_verification_role_requires_permission_and_hierarchy(self):
+        role = MagicMock(spec=discord.Role)
+        role.managed = False
+        role.__ge__.return_value = False
+        guild = NS(get_role=Mock(return_value=role), default_role=discord.Object(1),
+                   me=NS(top_role=discord.Object(99), guild_permissions=NS(manage_roles=True)))
+        self.assertIs(unverified_role(guild, load_config()), role)
+        role.__ge__.return_value = True
+        with self.assertRaisesRegex(ValueError, 'above'):
+            unverified_role(guild, load_config())
+        role.__ge__.return_value = False
+        guild.me.guild_permissions.manage_roles = False
+        with self.assertRaisesRegex(ValueError, 'Manage Roles'):
+            unverified_role(guild, load_config())
+
     def test_duplicate_tickets_and_restart(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'test.db'
@@ -143,7 +159,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(item.disabled)
         self.assertEqual(len(ids), len(set(ids)))
         self.assertTrue(TicketControls(self.bot).is_persistent())
-        self.assertEqual(len(self.bot.tree.get_commands()), 14)
+        self.assertEqual(len(self.bot.tree.get_commands()), 15)
 
     async def test_welcome_panel_matches_requested_layout(self):
         member = NS(id=12, mention='<@12>', guild=NS(name='Esports Business'))
@@ -159,12 +175,15 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_join_sends_to_welcome_channel_and_only_mentions_joiner(self):
         member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
-                                                   name='Esports Business', member_count=251))
+                                                   name='Esports Business', member_count=251), add_roles=AsyncMock())
         channel = NS(send=AsyncMock())
         self.bot.channel = AsyncMock(return_value=channel)
-        await self.bot.on_member_join(member)
-        first = self.bot.last_welcome_greeting
-        await self.bot.on_member_join(member)
+        role = discord.Object(1564362600874254368)
+        with patch('bot.unverified_role', return_value=role):
+            await self.bot.on_member_join(member)
+            first = self.bot.last_welcome_greeting
+            await self.bot.on_member_join(member)
+        member.add_roles.assert_awaited_with(role, reason='Assign new-member role on joining', atomic=True)
         self.assertNotEqual(first, self.bot.last_welcome_greeting)
         self.bot.channel.assert_awaited_with('1564325669264167059')
         mentions = channel.send.await_args.kwargs['allowed_mentions'].to_dict()
@@ -180,15 +199,15 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_welcome_send_failure_does_not_disable_tickets(self):
         member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
-                                                   name='Esports Business', member_count=251))
+                                                   name='Esports Business', member_count=251), add_roles=AsyncMock())
         self.bot.channel = AsyncMock(side_effect=discord.Forbidden(NS(status=403, reason='Forbidden'), 'Missing Permissions'))
-        with self.assertLogs('esports', level='ERROR'):
+        with self.assertLogs('esports', level='ERROR'), patch('bot.unverified_role', return_value=discord.Object(1564362600874254368)):
             await self.bot.on_member_join(member)
         self.assertTrue(self.bot.ready_for_tickets)
         self.assertIsNone(self.bot.last_welcome_greeting)
 
     async def test_welcome_fallback_keeps_message_content_intent(self):
-        fallback = EsportsBot(load_config(), Path(self.tmp.name) / 'fallback.db', enable_welcomes=False)
+        fallback = EsportsBot(load_config(), Path(self.tmp.name) / 'fallback.db', enable_member_events=False)
         try:
             self.assertFalse(fallback.intents.members)
             self.assertTrue(fallback.intents.message_content)
@@ -203,6 +222,48 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                 selected = choose_greeting(previous)
                 self.assertNotEqual(selected, previous)
                 self.assertEqual(set(choose.call_args.args[0]), set(WELCOME_MESSAGES) - {previous})
+
+    async def test_verification_panel_is_persistent_and_has_banner_and_button(self):
+        view = verification_panel(self.bot)
+        self.assertTrue(view.is_persistent())
+        self.assertIsNone(view.children[0].accent_colour)
+        payload = json.dumps(view.to_components())
+        self.assertIn('attachment://banner.gif', payload)
+        self.assertIn('esports:verify:v1', payload)
+        self.assertNotIn('footer.png', payload)
+
+    async def test_verify_only_removes_new_member_role_from_clicking_member(self):
+        interaction = self.interaction()
+        role = discord.Object(1564362600874254368)
+        member = NS(roles=[role, discord.Object(88)], remove_roles=AsyncMock())
+        interaction.guild = NS(fetch_member=AsyncMock(return_value=member))
+        self.bot.valid_interaction = AsyncMock(return_value=True)
+        with patch('bot.unverified_role', return_value=role):
+            await self.bot.verify_member(interaction)
+        interaction.guild.fetch_member.assert_awaited_once_with(interaction.user.id)
+        member.remove_roles.assert_awaited_once_with(role, reason='Member verified using the Verify button', atomic=True)
+        self.assertIn('You’re verified!', interaction.followup.send.await_args.args[0])
+
+    async def test_already_verified_member_has_no_roles_changed(self):
+        interaction = self.interaction()
+        member = NS(roles=[discord.Object(88)], remove_roles=AsyncMock())
+        interaction.guild = NS(fetch_member=AsyncMock(return_value=member))
+        self.bot.valid_interaction = AsyncMock(return_value=True)
+        with patch('bot.unverified_role', return_value=discord.Object(1564362600874254368)):
+            await self.bot.verify_member(interaction)
+        member.remove_roles.assert_not_awaited()
+        self.assertIn('already verified', interaction.followup.send.await_args.args[0])
+
+    async def test_verification_failure_is_not_reported_as_success(self):
+        interaction = self.interaction()
+        role = discord.Object(1564362600874254368)
+        member = NS(roles=[role], remove_roles=AsyncMock(side_effect=discord.Forbidden(
+            NS(status=403, reason='Forbidden'), 'Missing Permissions')))
+        interaction.guild = NS(fetch_member=AsyncMock(return_value=member))
+        self.bot.valid_interaction = AsyncMock(return_value=True)
+        with patch('bot.unverified_role', return_value=role):
+            await self.bot.verify_member(interaction)
+        self.assertIn('couldn’t remove', interaction.followup.send.await_args.args[0])
 
     async def test_ticket_menu_matches_reference(self):
         view = panel(self.bot, 'support')

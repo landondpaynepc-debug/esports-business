@@ -5,6 +5,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 ## Included
 
 - Automatic welcome panels with your custom emoji, member count, Dashboard link, and 10 randomized greetings without consecutive repeats during a running session.
+- New-member role assignment on join and a persistent **Verify** button that removes that role.
 - **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
 - Your animated GIF at the top of every panel, with no bottom banners or colored side stripes. The GIF is bundled in `assets/banner.gif` so the bot does not depend on the original Discord download link.
@@ -25,6 +26,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | Ticket support panel | `1564325660313391316` |
 | Transcripts | `1565667801908387853` |
 | Welcome messages | `1564325669264167059` |
+| New-member role (removed by Verify) | `1564362600874254368` |
 | General Support category | `1565668518480056430` |
 | Ownership Support category | `1565668743307067432` |
 | Paid Ad/SPGW category | `1565668672192909382` |
@@ -36,7 +38,7 @@ These values are already set in `config.json`. IDs are strings to preserve their
 ## Start the bot
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Esports Business**. The code cannot change the application's display name.
-2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent** for ticket transcripts and **Server Members Intent** for automatic welcomes. The Presence intent is not required.
+2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent** for ticket transcripts and **Server Members Intent** for automatic welcomes and new-member role assignment. The Presence intent is not required.
 3. Install the application in your server with the `bot` and `applications.commands` scopes. Give it **View Channels**, **Send Messages**, **Read Message History**, **Embed Links**, **Attach Files**, **Manage Channels**, **Manage Roles** (needed to update channel permission overwrites), **Manage Messages**, **Moderate Members**, **Kick Members**, and **Ban Members**. Move its role above members it should moderate and above the configured staff role. Administrator permission is not required.
 4. Download or clone this repository and open a terminal in its folder.
 5. Install the dependencies:
@@ -73,9 +75,17 @@ The actual server name is used automatically. Each panel starts with `<:icon:156
 
 The trailing sentence is randomly chosen from 10 messages in `welcome.py`. Consecutive welcomes use different sentences while the process is running. Old welcome messages keep their original member count; only new joins receive a welcome, with no mass greeting on startup.
 
-Enable **Server Members Intent** under **Discord Developer Portal → your application → Bot → Privileged Gateway Intents**, save, then restart the bot. If Discord rejects the new intent, the bot reconnects with welcomes disabled so the existing ticket and moderation features can stay online. Enable the intent and restart to turn welcomes on. Message Content Intent must remain enabled for the existing features.
+Enable **Server Members Intent** under **Discord Developer Portal → your application → Bot → Privileged Gateway Intents**, save, then restart the bot. If Discord rejects the new intent, the bot reconnects with welcomes and automatic new-member role assignment disabled so the existing ticket and moderation features can stay online. Enable the intent and restart to turn join features on. Message Content Intent must remain enabled for the existing features.
 
 The bot needs View Channel and Send Messages in the welcome channel, plus Use External Emojis if the custom icon belongs to another server. Administrators can run **`/welcome-preview`** to see a private preview; it does not post to the welcome channel or require someone to leave and rejoin. No `/setup` is needed to activate welcomes after a successful restart with the intent enabled.
+
+## Verification
+
+On each new join, the bot assigns role **`1564362600874254368`** before sending the welcome. Clicking **Verify** removes only that role from the member who clicked. No extra verified role is added. Existing members are not assigned the role in bulk, and repeated verification does not remove other roles.
+
+As an administrator, run **`/verification-setup`** in the verification channel, or choose a destination with **`/verification-setup channel:#your-channel`**. The command posts a panel with your animated banner, a verification description, and the Verify button on the right. Repeating the command updates the saved panel in that channel while its database record remains available. The button stays functional after a restart.
+
+Give the bot **Manage Roles** and put its highest role above role `1564362600874254368`. Enable Server Members Intent for automatic assignment. The new-member role must be able to view the verification channel. Configure that role's channel restrictions in Discord to limit access before verification; this feature changes role membership and does not rewrite server/channel permission rules. It is one-click verification, not a CAPTCHA or identity check.
 
 ## Staff and privacy
 
@@ -98,6 +108,7 @@ The prices from the reference are already in `config.json`. Edit `marketplace_te
 | `/help` | Everyone | Commands and support links |
 | `/setup` | Administrators | Publish/update panels |
 | `/welcome-preview` | Administrators | Preview the randomized welcome panel privately |
+| `/verification-setup [channel]` | Administrators | Post/update the Verify panel in the current or selected text channel |
 | `/claim` | This ticket type's staff or administrators | Claim the current ticket |
 | `/close` | Ticket opener, this ticket's staff, or administrators | Enter a reason, archive, then delete the ticket |
 | `/warn member reason` | Manage Messages | Save a warning |
