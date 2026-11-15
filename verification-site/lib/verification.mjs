@@ -50,7 +50,9 @@ async function finish(env, status, message) {
   return redirect('/verified', [cookie(FLOW, '', 0), cookie(RESULT, result, 300)]);
 }
 async function api(fetcher, path, init = {}) {
-  return fetcher(`${API}${path}`, {...init, signal:AbortSignal.timeout(12000), redirect:'error'});
+  const headers = new Headers(init.headers);
+  headers.set('User-Agent', 'DiscordBot (https://github.com/landondpaynepc-debug/esports-business, 1.0)');
+  return fetcher(`${API}${path}`, {...init, headers, signal:AbortSignal.timeout(12000), redirect:'error'});
 }
 export async function callback(request, env, fetcher = fetch) {
   if (!configured(env)) return redirect('/?status=unavailable');
