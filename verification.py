@@ -1,4 +1,4 @@
-"""Persistent one-click verification panel and role checks."""
+"""Discord sign-in verification panel and role checks."""
 import discord
 from discord import ui
 
@@ -26,16 +26,17 @@ class VerifyButton(ui.Button):
         await self.bot.verify_member(interaction)
 
 
-def verification_panel(bot):
+def verification_panel(bot, *, legacy=False):
     view = SafeView(timeout=None)
     view.add_item(ui.Container(
-        ui.MediaGallery(discord.MediaGalleryItem('attachment://banner.gif')),
+        ui.MediaGallery(discord.MediaGalleryItem(bot.config['branding']['banner_url'])),
         ui.TextDisplay(
             '**Verification**\n\n'
-            'Welcome to **Esports Business**! Click **Verify** below to verify and access the server. '
-            'Your new-member role will be removed automatically.'
+            'Welcome to **Esports Business**! Click **Verify** to open our website and sign in with Discord. '
+            'After successful sign-in, your new-member role will be removed automatically.'
         ),
         ui.Separator(),
-        ui.Section(ui.TextDisplay('Verify using the button here:'), accessory=VerifyButton(bot)),
+        ui.Section(ui.TextDisplay('Verify using the button here:'), accessory=(VerifyButton(bot) if legacy else
+            ui.Button(label='Verify', url=bot.config['branding']['verification_url']))),
     ))
     return view

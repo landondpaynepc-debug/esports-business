@@ -28,6 +28,7 @@ log = logging.getLogger('esports')
 
 def load_config():
     cfg = json.loads((BASE / 'config.json').read_text(encoding='utf-8'))
+    cfg['branding'] = json.loads((BASE / 'branding.json').read_text(encoding='utf-8'))
     int(cfg['guild_id'])
     int(cfg['welcome']['channel_id'])
     int(cfg['verification']['role_id'])
@@ -138,13 +139,15 @@ class EsportsBot(discord.Client):
         return self.locks.setdefault(key, asyncio.Lock())
 
     def assets(self):
-        return [discord.File(BASE / 'assets' / 'banner.gif', filename='banner.gif')]
+        # Every panel and the website use the same permanent banner URL.
+        return []
 
     async def setup_hook(self):
         for kind in ('dashboard', 'marketplace', 'support'):
             self.add_view(panel(self, kind))
         self.add_view(TicketControls(self))
-        self.add_view(verification_panel(self))
+        # Old posted buttons also redirect; they never directly grant access.
+        self.add_view(verification_panel(self, legacy=True))
         guild = discord.Object(id=int(self.config['guild_id']))
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
@@ -195,25 +198,8 @@ class EsportsBot(discord.Client):
     async def verify_member(self, interaction):
         if not await self.valid_interaction(interaction):
             return
-        await interaction.response.defer(ephemeral=True)
-        async with self.lock(('verification', interaction.user.id)):
-            try:
-                role = unverified_role(interaction.guild, self.config)
-                member = await interaction.guild.fetch_member(interaction.user.id)
-                if role.id not in {item.id for item in member.roles}:
-                    await respond(interaction, 'You’re already verified—your new-member role is not assigned.')
-                    return
-                await member.remove_roles(role, reason='Member verified using the Verify button', atomic=True)
-            except ValueError as error:
-                await respond(interaction, str(error))
-                return
-            except discord.Forbidden:
-                await respond(interaction, 'I couldn’t remove the role. Ask an administrator to give me Manage Roles and move my role above the new-member role.')
-                return
-            except discord.NotFound:
-                await respond(interaction, 'Your membership or the new-member role could not be found. Please try again.')
-                return
-            await respond(interaction, 'You’re verified! Your new-member role has been removed.')
+        await respond(interaction, f'Complete verification by signing in with Discord on our website: '
+                      f'{self.config["branding"]["verification_url"]}')
 
     async def on_ready(self):
         if self.started:
@@ -228,6 +214,37 @@ class EsportsBot(discord.Client):
         except Exception:
             self.started = False
             log.exception('Startup initialization failed. Check the exception below and restart after fixing it.')
+        if self.ready_for_tickets:
+            await self.refresh_existing_panels()
+
+    async def refresh_existing_panels(self):
+        """Refresh existing panels without creating duplicate public posts."""
+        async with self.setup_lock:
+            targets = {name: self.config['channels'][name] for name in ('dashboard', 'marketplace', 'support')}
+            for row in self.store.db.execute("SELECT name FROM panels WHERE name LIKE 'verification:%'").fetchall():
+                targets[row['name']] = row['name'].split(':', 1)[1]
+            signatures = {'dashboard': 'esports:rules:v1', 'marketplace': 'esports:purchase:v1',
+                          'support': 'esports:ticket:select:v1'}
+            for name, channel_id in targets.items():
+                try:
+                    channel = await self.channel(channel_id)
+                    row = self.store.db.execute('SELECT message_id FROM panels WHERE name=?', (name,)).fetchone()
+                    message = None
+                    if row:
+                        with suppress(discord.NotFound):
+                            message = await channel.fetch_message(row['message_id'])
+                    if message is None and name in signatures:
+                        async for candidate in channel.history(limit=50):
+                            if candidate.author.id == self.user.id and signatures[name] in json.dumps(
+                                    [item.to_dict() for item in candidate.components]):
+                                message = candidate
+                                break
+                    if message and message.author.id == self.user.id:
+                        view = verification_panel(self) if name.startswith('verification:') else panel(self, name)
+                        await message.edit(view=view, attachments=[])
+                        self.store.execute('INSERT OR REPLACE INTO panels VALUES(?,?)', (name, message.id))
+                except (discord.DiscordException, ValueError):
+                    log.exception('Could not refresh panel %s; use /setup or /verification-setup to retry.', name)
 
     async def close(self):
         task = self.member_count_status.get_task()
@@ -350,7 +367,7 @@ class EsportsBot(discord.Client):
                 finally:
                     for file in files:
                         file.close()
-            await respond(interaction, f'Verification panel posted in {destination.mention}. New joins get the new-member role; Verify removes it. Make sure that role can view this channel.')
+            await respond(interaction, f'Verification panel posted in {destination.mention}. Verify opens the Discord sign-in website. Make sure the new-member role can view this channel.')
 
         @self.tree.command(name='welcome-preview', description='Preview the welcome panel privately (administrators only).')
         @app_commands.default_permissions(administrator=True)

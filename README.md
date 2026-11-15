@@ -81,11 +81,21 @@ The bot needs View Channel and Send Messages in the welcome channel, plus Use Ex
 
 ## Verification
 
-On each new join, the bot assigns role **`1564362600874254368`** before sending the welcome. Clicking **Verify** removes only that role from the member who clicked. No extra verified role is added. Existing members are not assigned the role in bulk, and repeated verification does not remove other roles.
+On each new join, the bot assigns role **`1564362600874254368`** before sending the welcome. **Verify** opens the verification website. Only successful official Discord sign-in removes that role from the authenticated server member. No extra role is added. Existing members are not assigned the role in bulk. Old Verify buttons also redirect and never grant access by themselves.
 
 As an administrator, run **`/verification-setup`** in the verification channel, or choose a destination with **`/verification-setup channel:#your-channel`**. The command posts a panel with your animated banner, a verification description, and the Verify button on the right. Repeating the command updates the saved panel in that channel while its database record remains available. The button stays functional after a restart.
 
-Give the bot **Manage Roles** and put its highest role above role `1564362600874254368`. Enable Server Members Intent for automatic assignment. The new-member role must be able to view the verification channel. Configure that role's channel restrictions in Discord to limit access before verification; this feature changes role membership and does not rewrite server/channel permission rules. It is one-click verification, not a CAPTCHA or identity check.
+Give the bot **Manage Roles** and put its highest role above role `1564362600874254368`. Enable Server Members Intent for automatic assignment. The new-member role must be able to view the verification channel. Configure that role's channel restrictions in Discord to limit access before verification. Discord sign-in proves account ownership; it is not a CAPTCHA or a real-world identity check.
+
+The website source is in `verification-site/`. Before sign-in works, add this exact redirect in the Discord application's OAuth2 settings:
+
+`https://esports-business-verification.stellarbutterfly2.chatgpt.site/auth/discord/callback`
+
+Configure **DISCORD_CLIENT_SECRET** and **DISCORD_BOT_TOKEN** as private runtime secrets in the website's Sites settings, then redeploy. The client secret must belong to application `1569262699140096170`, and the bot token must be its current token. Never commit credentials. The website displays a setup notice until both values are configured.
+
+Successful role removals are logged as an embed in **`1564364557693091951`**. Give the bot View Channel, Send Messages, and Embed Links there. Already-verified visits do not create duplicate logs. A logging failure is recorded in server logs without undoing verification.
+
+The website uses authorization-code sign-in with PKCE, signed short-lived browser cookies, and the `identify` permission only. It confirms guild membership before changing the one configured role, and revokes the user's access token after the attempt. Passwords and tokens are never requested by the page, saved to the database, or included in verification logs.
 
 ## Staff and privacy
 
@@ -97,7 +107,9 @@ Edit `staff_role_ids` in `config.json` and restart to change ticket staff. Owner
 
 ## Payments and panel text
 
-The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your provided animated GIF is included unchanged. After deploying banner updates, run `/setup` to replace the images on existing public panel messages.
+The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your animated GIF is included unchanged. **`branding.json` is the single shared banner setting**: dashboard, marketplace, support, guidelines, verification panel, and website all use its permanent banner URL. The website reads this setting from GitHub on each page request; no expiring Discord attachment URL is used. Change the URL's `v` query when replacing `assets/banner.gif` to refresh caches. No bottom banners are used. Welcomes retain the compact layout without a banner.
+
+On startup the bot refreshes saved verification panels and finds existing public panels in the latest 50 messages of their configured channels, without creating new posts. Run `/setup` or `/verification-setup` for panels older than that or verification panel IDs lost when ephemeral storage resets. Historical ephemeral guideline messages cannot be edited; newly opened guidelines use the current banner.
 
 `paypal_url` is blank because the reference image's recipient was not confirmed. Add your own HTTPS PayPal link to display a payment button, then restart and rerun `/setup`. Without it, customers open a Paid Ad/SPGW ticket to arrange payment with staff. The bot does not process payments, confirm purchases automatically, or schedule advertising pings.
 

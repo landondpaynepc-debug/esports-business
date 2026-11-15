@@ -103,7 +103,7 @@ class RulesButton(ui.Button):
 def panel(bot, kind):
     cfg = bot.config
     view = SafeView(timeout=None)
-    children = [ui.MediaGallery(discord.MediaGalleryItem('attachment://banner.gif')), ui.Separator()]
+    children = [ui.MediaGallery(discord.MediaGalleryItem(cfg['branding']['banner_url'])), ui.Separator()]
     if kind == 'dashboard':
         children.append(ui.TextDisplay(
             '# Esports Business\nWelcome to the community dashboard.\n\n'

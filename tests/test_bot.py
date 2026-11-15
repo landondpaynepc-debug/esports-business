@@ -109,6 +109,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.bot = EsportsBot(load_config(), Path(self.tmp.name) / 'state.db')
         self.bot._connection.user = NS(id=99)
         self.bot.ready_for_tickets = True
+        self.bot.refresh_existing_panels = AsyncMock()
 
     async def asyncTearDown(self):
         await self.bot.close()
@@ -146,7 +147,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         for kind in ('dashboard', 'marketplace', 'support', 'rules'):
             view = panel(self.bot, kind)
             payload = json.dumps(view.to_components())
-            self.assertIn('attachment://banner.gif', payload)
+            self.assertIn(self.bot.config['branding']['banner_url'], payload)
             self.assertNotIn('attachment://footer.png', payload)
             self.assertEqual(sum(isinstance(item, discord.ui.MediaGallery) for item in view.walk_children()), 1)
             self.assertLessEqual(view.content_length(), 4000)
@@ -228,11 +229,12 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(view.is_persistent())
         self.assertIsNone(view.children[0].accent_colour)
         payload = json.dumps(view.to_components())
-        self.assertIn('attachment://banner.gif', payload)
-        self.assertIn('esports:verify:v1', payload)
+        self.assertIn(self.bot.config['branding']['banner_url'], payload)
+        self.assertIn(self.bot.config['branding']['verification_url'], payload)
+        self.assertNotIn('esports:verify:v1', payload)
         self.assertNotIn('footer.png', payload)
 
-    async def test_verify_only_removes_new_member_role_from_clicking_member(self):
+    async def test_old_verify_button_redirects_without_granting_access(self):
         interaction = self.interaction()
         role = discord.Object(1564362600874254368)
         member = NS(roles=[role, discord.Object(88)], remove_roles=AsyncMock())
@@ -240,9 +242,9 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.bot.valid_interaction = AsyncMock(return_value=True)
         with patch('bot.unverified_role', return_value=role):
             await self.bot.verify_member(interaction)
-        interaction.guild.fetch_member.assert_awaited_once_with(interaction.user.id)
-        member.remove_roles.assert_awaited_once_with(role, reason='Member verified using the Verify button', atomic=True)
-        self.assertIn('You’re verified!', interaction.followup.send.await_args.args[0])
+        interaction.guild.fetch_member.assert_not_awaited()
+        member.remove_roles.assert_not_awaited()
+        self.assertIn(self.bot.config['branding']['verification_url'], interaction.followup.send.await_args.args[0])
 
     async def test_already_verified_member_has_no_roles_changed(self):
         interaction = self.interaction()
@@ -252,7 +254,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         with patch('bot.unverified_role', return_value=discord.Object(1564362600874254368)):
             await self.bot.verify_member(interaction)
         member.remove_roles.assert_not_awaited()
-        self.assertIn('already verified', interaction.followup.send.await_args.args[0])
+        self.assertIn('signing in with Discord', interaction.followup.send.await_args.args[0])
 
     async def test_verification_failure_is_not_reported_as_success(self):
         interaction = self.interaction()
@@ -263,7 +265,8 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.bot.valid_interaction = AsyncMock(return_value=True)
         with patch('bot.unverified_role', return_value=role):
             await self.bot.verify_member(interaction)
-        self.assertIn('couldn’t remove', interaction.followup.send.await_args.args[0])
+        member.remove_roles.assert_not_awaited()
+        self.assertNotIn('You’re verified', interaction.followup.send.await_args.args[0])
 
     async def test_ticket_menu_matches_reference(self):
         view = panel(self.bot, 'support')
