@@ -52,7 +52,10 @@ async function finish(env, status, message) {
 async function api(fetcher, path, init = {}) {
   const headers = new Headers(init.headers);
   headers.set('User-Agent', 'DiscordBot (https://github.com/landondpaynepc-debug/esports-business, 1.0)');
-  return fetcher(`${API}${path}`, {...init, headers, signal:AbortSignal.timeout(12000), redirect:'error'});
+  // Workers supports manual/follow only. Manual also keeps credentials from following redirects.
+  const response = await fetcher(`${API}${path}`, {...init, headers, signal:AbortSignal.timeout(12000), redirect:'manual'});
+  if (!response.ok) console.error('discord_request_failed', {endpoint:path.replace(/\d+/g, ':id'), status:response.status});
+  return response;
 }
 export async function callback(request, env, fetcher = fetch) {
   if (!configured(env)) return redirect('/?status=unavailable');
@@ -65,6 +68,7 @@ export async function callback(request, env, fetcher = fetch) {
   const code = url.searchParams.get('code');
   if (!code || code.length > 2048) return finish(env, 'error', 'Discord did not return a valid sign-in code. Please try again.');
   let accessToken;
+  let stage = 'token_exchange';
   try {
     const tokenResponse = await api(fetcher, '/oauth2/token', {method:'POST', body:new URLSearchParams({
       client_id:CLIENT_ID, client_secret:env.DISCORD_CLIENT_SECRET, grant_type:'authorization_code',
@@ -73,10 +77,12 @@ export async function callback(request, env, fetcher = fetch) {
     const token = await tokenResponse.json();
     accessToken = token.access_token;
     if (typeof accessToken !== 'string' || !token.scope?.split(' ').includes('identify')) throw new Error('invalid-token');
+    stage = 'identity_lookup';
     const identity = await api(fetcher, '/users/@me', {headers:{Authorization:`Bearer ${accessToken}`}});
     if (!identity.ok) throw new Error('identity-unavailable');
     const user = await identity.json();
     if (!/^\d{17,20}$/.test(user.id) || user.bot) throw new Error('invalid-identity');
+    stage = 'membership_lookup';
     const botHeaders = {Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`};
     const memberResponse = await api(fetcher, `/guilds/${GUILD}/members/${user.id}`, {headers:botHeaders});
     if (memberResponse.status === 404) return finish(env, 'error', 'This Discord account is not in Esports Business. Join the server or sign in with the correct account.');
@@ -84,6 +90,7 @@ export async function callback(request, env, fetcher = fetch) {
     const member = await memberResponse.json();
     if (!Array.isArray(member.roles)) throw new Error('invalid-membership');
     if (!member.roles.includes(ROLE)) return finish(env, 'success', 'You already have access. Your unverified role is not assigned.');
+    stage = 'role_update';
     const removed = await api(fetcher, `/guilds/${GUILD}/members/${user.id}/roles/${ROLE}`, {
       method:'DELETE', headers:{...botHeaders, 'X-Audit-Log-Reason':'Completed%20official%20Discord%20sign-in%20verification'}});
     if (!removed.ok) return finish(env, 'error', 'Your account was confirmed, but the bot could not update your role. Please contact server staff.');
@@ -95,7 +102,9 @@ export async function callback(request, env, fetcher = fetch) {
       if (!logged.ok) console.error('verification_log_failed', logged.status);
     } catch { console.error('verification_log_failed'); }
     return finish(env, 'success', 'You’re verified! Your unverified role has been removed. Welcome to Esports Business.');
-  } catch {
+  } catch (error) {
+    // Log only fixed stage names and exception types, never URLs, bodies, codes, or secrets.
+    console.error('verification_failed', {stage, type:error instanceof Error ? error.name : 'UnknownError'});
     return finish(env, 'error', 'Verification could not be completed. Please try again shortly or contact server staff.');
   } finally {
     if (accessToken) {
