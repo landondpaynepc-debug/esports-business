@@ -179,12 +179,13 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                                                    name='Esports Business', member_count=251), add_roles=AsyncMock())
         channel = NS(send=AsyncMock())
         self.bot.channel = AsyncMock(return_value=channel)
-        role = discord.Object(1564362600874254368)
-        with patch('bot.unverified_role', return_value=role):
+        with patch('bot.assignable_role', side_effect=lambda guild, role_id: discord.Object(int(role_id))):
             await self.bot.on_member_join(member)
             first = self.bot.last_welcome_greeting
             await self.bot.on_member_join(member)
-        member.add_roles.assert_awaited_with(role, reason='Assign new-member role on joining', atomic=True)
+        self.assertEqual([call.args[0].id for call in member.add_roles.await_args_list],
+                         [1564362600874254368, 1564325606907453532] * 2)
+        self.assertTrue(all(call.kwargs['atomic'] for call in member.add_roles.await_args_list))
         self.assertNotEqual(first, self.bot.last_welcome_greeting)
         self.bot.channel.assert_awaited_with('1564325669264167059')
         mentions = channel.send.await_args.kwargs['allowed_mentions'].to_dict()
@@ -202,10 +203,29 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
                                                    name='Esports Business', member_count=251), add_roles=AsyncMock())
         self.bot.channel = AsyncMock(side_effect=discord.Forbidden(NS(status=403, reason='Forbidden'), 'Missing Permissions'))
-        with self.assertLogs('esports', level='ERROR'), patch('bot.unverified_role', return_value=discord.Object(1564362600874254368)):
+        with self.assertLogs('esports', level='ERROR'), patch('bot.assignable_role', side_effect=lambda guild, role_id: discord.Object(int(role_id))):
             await self.bot.on_member_join(member)
         self.assertTrue(self.bot.ready_for_tickets)
         self.assertIsNone(self.bot.last_welcome_greeting)
+
+    async def test_join_role_failure_still_assigns_other_role_and_welcomes(self):
+        for failed_role in (1564362600874254368, 1564325606907453532):
+            with self.subTest(failed_role=failed_role):
+                member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
+                            name='Esports Business', member_count=251), add_roles=AsyncMock())
+                async def add_role(role, **kwargs):
+                    if role.id == failed_role:
+                        raise discord.Forbidden(NS(status=403, reason='Forbidden'), 'Missing Permissions')
+                member.add_roles.side_effect = add_role
+                channel = NS(send=AsyncMock())
+                self.bot.channel = AsyncMock(return_value=channel)
+                with self.assertLogs('esports', level='ERROR'), patch('bot.assignable_role',
+                        side_effect=lambda guild, role_id: discord.Object(int(role_id))):
+                    await self.bot.on_member_join(member)
+                self.assertEqual([call.args[0].id for call in member.add_roles.await_args_list],
+                                 [1564362600874254368, 1564325606907453532])
+                channel.send.assert_awaited_once()
+                self.assertTrue(self.bot.ready_for_tickets)
 
     async def test_welcome_fallback_keeps_message_content_intent(self):
         fallback = EsportsBot(load_config(), Path(self.tmp.name) / 'fallback.db', enable_member_events=False)

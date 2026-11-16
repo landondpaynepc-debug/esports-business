@@ -20,7 +20,7 @@ from panels import CloseForm, TicketControls, panel, respond, RED
 from storage import Store
 from transcripts import export_transcript
 from welcome import choose_greeting, welcome_panel
-from verification import unverified_role, verification_panel
+from verification import assignable_role, unverified_role, verification_panel
 
 BASE = Path(__file__).resolve().parent
 log = logging.getLogger('esports')
@@ -30,6 +30,7 @@ def load_config():
     cfg = json.loads((BASE / 'config.json').read_text(encoding='utf-8'))
     cfg['branding'] = json.loads((BASE / 'branding.json').read_text(encoding='utf-8'))
     int(cfg['guild_id'])
+    int(cfg['join_role_id'])
     int(cfg['welcome']['channel_id'])
     int(cfg['verification']['role_id'])
     for value in cfg['channels'].values():
@@ -175,12 +176,15 @@ class EsportsBot(discord.Client):
     async def on_member_join(self, member):
         if member.guild.id != int(self.config['guild_id']):
             return
-        try:
-            async with self.lock(('verification', member.id)):
-                role = unverified_role(member.guild, self.config)
-                await member.add_roles(role, reason='Assign new-member role on joining', atomic=True)
-        except (discord.DiscordException, ValueError):
-            log.exception('Could not assign the new-member role to %s. Check Manage Roles and role order.', member.id)
+        async with self.lock(('verification', member.id)):
+            # Assign separately so a problem with one role does not prevent the other.
+            for role_id in dict.fromkeys((self.config['verification']['role_id'], self.config['join_role_id'])):
+                try:
+                    role = assignable_role(member.guild, role_id)
+                    await member.add_roles(role, reason='Assign new-member role on joining', atomic=True)
+                except (discord.DiscordException, ValueError):
+                    log.exception('Could not assign join role %s to %s. Check Manage Roles and role order.',
+                                  role_id, member.id)
         # Serialize joins so even simultaneous arrivals get different greetings.
         async with self.lock('welcome'):
             greeting = choose_greeting(self.last_welcome_greeting)

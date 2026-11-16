@@ -5,15 +5,19 @@ from discord import ui
 from panels import SafeView
 
 
-def unverified_role(guild, config):
-    role = guild.get_role(int(config['verification']['role_id']))
+def assignable_role(guild, role_id):
+    role = guild.get_role(int(role_id))
     if role is None or role == guild.default_role or role.managed:
         raise ValueError('The configured new-member role is missing or cannot be managed.')
     if guild.me is None or not guild.me.guild_permissions.manage_roles:
-        raise ValueError('Give the bot Manage Roles permission before enabling verification.')
+        raise ValueError('Give the bot Manage Roles permission before assigning roles.')
     if role >= guild.me.top_role:
         raise ValueError('Move the bot’s role above the new-member role in Server Settings → Roles.')
     return role
+
+
+def unverified_role(guild, config):
+    return assignable_role(guild, config['verification']['role_id'])
 
 
 class VerifyButton(ui.Button):

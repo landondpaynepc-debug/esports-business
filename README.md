@@ -81,11 +81,11 @@ The bot needs View Channel and Send Messages in the welcome channel, plus Use Ex
 
 ## Verification
 
-On each new join, the bot assigns role **`1564362600874254368`** before sending the welcome. **Verify** opens the verification website. Only successful official Discord sign-in removes that role from the authenticated server member. No extra role is added. Existing members are not assigned the role in bulk. Old Verify buttons also redirect and never grant access by themselves.
+On each new join, the bot assigns member role **`1564325606907453532`** (`join_role_id`) and unverified role **`1564362600874254368`** before sending the welcome. **Verify** opens the verification website. Successful official Discord sign-in removes only the unverified role; the member role stays. Existing members are not assigned roles in bulk. Old Verify buttons also redirect and never grant access by themselves.
 
 As an administrator, run **`/verification-setup`** in the verification channel, or choose a destination with **`/verification-setup channel:#your-channel`**. The command posts a panel with your animated banner, a verification description, and the Verify button on the right. Repeating the command updates the saved panel in that channel while its database record remains available. The button stays functional after a restart.
 
-Give the bot **Manage Roles** and put its highest role above role `1564362600874254368`. Enable Server Members Intent for automatic assignment. The new-member role must be able to view the verification channel. Configure that role's channel restrictions in Discord to limit access before verification. Discord sign-in proves account ownership; it is not a CAPTCHA or a real-world identity check.
+Give the bot **Manage Roles** and put its highest role above both `1564325606907453532` and `1564362600874254368`. Enable Server Members Intent for automatic assignment. The unverified role must be able to view the verification channel. Configure channel restrictions to limit access before verification, accounting for both roles. Discord sign-in proves account ownership; it is not a CAPTCHA or a real-world identity check.
 
 The website source is in `verification-site/`. Before sign-in works, add this exact redirect in the Discord application's OAuth2 settings:
 
