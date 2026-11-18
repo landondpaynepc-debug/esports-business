@@ -35,6 +35,8 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 
 These values are already set in `config.json`. IDs are strings to preserve their full precision.
 
+Each new ticket pings the opener and the same staff roles that receive access to that ticket: General Support and Paid Ad/SPGW notify `1564325589827977330`, while Ownership Support notifies only `1569278707833503776`. The bot can mention non-mentionable staff roles inside ticket channels; message notifications are restricted to the configured roles and opener. Reopening the form for an existing ticket does not ping staff again.
+
 ## Start the bot
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Esports Business**. The code cannot change the application's display name.

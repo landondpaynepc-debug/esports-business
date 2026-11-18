@@ -60,7 +60,7 @@ def ticket_overwrites(guild, owner, staff_roles):
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True,
             read_message_history=True, attach_files=True, embed_links=True,
-            manage_channels=True, manage_roles=True),
+            manage_channels=True, manage_roles=True, mention_everyone=True),
     }
     if owner is not None:
         overwrites[owner] = discord.PermissionOverwrite(view_channel=True, send_messages=True,
@@ -485,9 +485,13 @@ class EsportsBot(discord.Client):
             embed.add_field(name='Opened by', value=f'<@{interaction.user.id}>', inline=True)
             embed.add_field(name='Claimed by', value='Unclaimed', inline=True)
             embed.set_footer(text='Staff: Claim to take responsibility. Close saves a transcript before deleting this channel.')
+            content = f'<@{interaction.user.id}> — your ticket is open.'
+            if roles:
+                content += '\n' + ' '.join(f'<@&{role.id}>' for role in roles) + ' — a new ticket needs your attention.'
             try:
-                await channel.send(content=f'<@{interaction.user.id}> — your ticket is open.', embed=embed,
-                                   view=TicketControls(self))
+                await channel.send(content=content, embed=embed, view=TicketControls(self),
+                                   allowed_mentions=discord.AllowedMentions(users=[interaction.user], roles=roles,
+                                                                            everyone=False, replied_user=False))
             except discord.HTTPException:
                 log.exception('Ticket created but welcome message failed: %s', channel.id)
                 await respond(interaction, f'Your ticket is <#{channel.id}>. The welcome message failed; staff can use /claim and /close.')

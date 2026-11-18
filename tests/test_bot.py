@@ -89,6 +89,9 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(permissions[owner].view_channel)
         self.assertTrue(permissions[staff].send_messages)
         self.assertFalse(permissions[owner].create_public_threads)
+        self.assertTrue(permissions[guild.me].mention_everyone)
+        self.assertIsNone(permissions[owner].mention_everyone)
+        self.assertIsNone(permissions[staff].mention_everyone)
         self.assertEqual(len(permissions), 4)
         with self.assertRaises(ValueError):
             ticket_overwrites(guild, owner, [guild.default_role])
@@ -292,6 +295,44 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         view = panel(self.bot, 'support')
         select = next(item for item in view.walk_children() if isinstance(item, discord.ui.Select))
         self.assertEqual([o.label for o in select.options], ['General Support', 'Ownership Support', 'Paid Ad/SPGW'])
+
+    async def test_new_tickets_ping_only_their_assigned_staff_and_opener_once(self):
+        staff_roles = {}
+        for role_id in (1564325589827977330, 1569278707833503776):
+            role = Mock(spec=discord.Role, id=role_id, managed=False)
+            staff_roles[role_id] = role
+        for index, (kind, expected_role_id) in enumerate((
+                ('general', 1564325589827977330),
+                ('ownership', 1569278707833503776),
+                ('paid', 1564325589827977330))):
+            with self.subTest(kind=kind):
+                interaction = self.interaction()
+                interaction.user = discord.Object(5)
+                channel = NS(id=100 + index, mention=f'<#{100 + index}>', send=AsyncMock())
+                interaction.guild = NS(default_role=discord.Object(1), me=discord.Object(99),
+                    get_role=staff_roles.get, create_text_channel=AsyncMock(return_value=channel))
+                archive = NS(permissions_for=lambda _: NS(view_channel=True, send_messages=True, attach_files=True))
+                self.bot.valid_interaction = AsyncMock(return_value=True)
+                self.bot.channel = AsyncMock(side_effect=[NS(), archive, channel])
+                await self.bot.open_ticket(interaction, kind, '@everyone <@&999>', '<@123> @here')
+                message = channel.send.await_args.kwargs
+                self.assertIn(f'<@&{expected_role_id}>', message['content'])
+                self.assertNotIn('@everyone', message['content'])
+                mentions = message['allowed_mentions'].to_dict()
+                self.assertEqual(mentions['roles'], [expected_role_id])
+                self.assertEqual(mentions['users'], [5])
+                self.assertEqual(mentions['parse'], [])
+                self.assertFalse(mentions.get('replied_user', False))
+                self.assertIsInstance(message['view'], TicketControls)
+                overwrites = interaction.guild.create_text_channel.await_args.kwargs['overwrites']
+                self.assertTrue(overwrites[staff_roles[expected_role_id]].view_channel)
+                other_role_id = next(role_id for role_id in staff_roles if role_id != expected_role_id)
+                self.assertNotIn(f'<@&{other_role_id}>', message['content'])
+                self.assertNotIn(staff_roles[other_role_id], overwrites)
+                await self.bot.open_ticket(interaction, kind, 'Duplicate request', 'No extra staff ping')
+                channel.send.assert_awaited_once()
+                interaction.guild.create_text_channel.assert_awaited_once()
+        self.assertEqual(self.bot.allowed_mentions.to_dict()['parse'], [])
 
     async def test_simultaneous_claims_have_one_winner(self):
         self.bot.store.add_ticket(100, 1, 'general')
