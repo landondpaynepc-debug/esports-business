@@ -102,19 +102,23 @@ class RulesButton(ui.Button):
 
 def panel(bot, kind):
     cfg = bot.config
+    marketplace_id = cfg['channels'].get('marketplace')
     view = SafeView(timeout=None)
     children = [ui.MediaGallery(discord.MediaGalleryItem(cfg['branding']['banner_url'])), ui.Separator()]
     if kind == 'dashboard':
         children.append(ui.TextDisplay(
             f'# {cfg["name"]}\nWelcome to the community dashboard.\n\n'
             '**Guidelines** — read our community rules.\n'
-            '**Marketplace** — explore advertisement packages.\n'
+            + ('**Marketplace** — explore advertisement packages.\n' if marketplace_id else
+               '**Marketplace** — currently unavailable.\n') +
             '**Ticket Support** — get help from our team.\n'
             '**Careers** — coming soon.'
         ))
         children.append(ui.ActionRow(
             RulesButton(bot),
-            ui.Button(label='Marketplace', url=f'https://discord.com/channels/{cfg["guild_id"]}/{cfg["channels"]["marketplace"]}', emoji='🛒'),
+            (ui.Button(label='Marketplace', url=f'https://discord.com/channels/{cfg["guild_id"]}/{marketplace_id}', emoji='🛒')
+             if marketplace_id else ui.Button(label='Marketplace', custom_id='esports:marketplace:unavailable:v1',
+                                             disabled=True, style=discord.ButtonStyle.secondary, emoji='🛒')),
             ui.Button(label='Ticket Support', url=f'https://discord.com/channels/{cfg["guild_id"]}/{cfg["channels"]["support"]}', emoji='🎟️'),
             ui.Button(label='Careers', custom_id='esports:careers:v1', disabled=True,
                       style=discord.ButtonStyle.secondary, emoji='💼'),
@@ -144,7 +148,8 @@ def panel(bot, kind):
             '### 🌐 | General Support\nQuestions about the server, member reports, or moderation appeals.\n\n'
             '### 🔑 | Ownership Support\nPrivate concerns for leadership, urgent server issues, or purchase reviews.\n\n'
             '### 💰 | Paid Ad/SPGW\nPurchase an advertisement or sponsored giveaway. '
-            f'View packages in <#{cfg["channels"]["marketplace"]}>. Payments are handled by staff through PayPal.'
+            + (f'View packages in <#{marketplace_id}>. ' if marketplace_id else 'Ask staff about available packages. ')
+            + 'Payments are handled by staff through PayPal.'
         ))
         children.append(ui.ActionRow(TicketSelect(bot)))
     elif kind == 'rules':

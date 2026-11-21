@@ -22,7 +22,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | --- | --- |
 | Server | `1254579248237379604` |
 | Dashboard | `1564325646761467956` |
-| Marketplace | `1564325648208629820` |
+| Marketplace | Disabled until a replacement channel is configured |
 | Ticket support panel | `1564325660313391316` |
 | Transcripts | `1565667801908387853` |
 | Welcome messages | `1564325669264167059` |
@@ -34,6 +34,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | Ownership Support role | `1569413223558680686` |
 
 These values are already set in `config.json`. IDs are strings to preserve their full precision.
+The marketplace channel is optional: leave `channels.marketplace` as `null` to disable its dashboard button and skip its setup. Set a replacement channel ID to enable it again.
 
 Each new ticket pings the opener and the same staff roles that receive access to that ticket: General Support and Paid Ad/SPGW notify `1564325589827977330`, while Ownership Support notifies only `1569413223558680686`. The bot can mention non-mentionable staff roles inside ticket channels; message notifications are restricted to the configured roles and opener. Reopening the form for an existing ticket does not ping staff again.
 

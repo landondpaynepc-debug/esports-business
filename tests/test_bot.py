@@ -177,6 +177,26 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(buttons[0].disabled)
         self.assertEqual(buttons[1].url, 'https://discord.com/channels/1254579248237379604/1564325646761467956')
 
+    async def test_missing_marketplace_disables_link_and_preflight_skips_it(self):
+        self.bot.config['channels']['marketplace'] = None
+        view = panel(self.bot, 'dashboard')
+        button = next(item for item in view.walk_children() if getattr(item, 'label', None) == 'Marketplace')
+        self.assertTrue(button.disabled)
+        self.assertIsNone(button.url)
+        self.assertNotIn('<#None>', json.dumps(panel(self.bot, 'support').to_components()))
+        guild = NS(me=discord.Object(99))
+        self.bot.channel = AsyncMock(return_value=NS(name='test', guild=guild,
+                                                    permissions_for=lambda _: discord.Permissions.all()))
+        self.bot.staff_roles = Mock(return_value=[])
+        channels = await self.bot.preflight()
+        self.assertEqual(set(channels), {'dashboard', 'support', 'transcripts'})
+        self.assertTrue(all(call.args[0] is not None for call in self.bot.channel.await_args_list))
+        self.bot.config['channels']['marketplace'] = '123456789012345678'
+        view = panel(self.bot, 'dashboard')
+        button = next(item for item in view.walk_children() if getattr(item, 'label', None) == 'Marketplace')
+        self.assertFalse(button.disabled)
+        self.assertTrue(button.url.endswith('/123456789012345678'))
+
     async def test_join_sends_to_welcome_channel_and_only_mentions_joiner(self):
         member = NS(id=12, mention='<@12>', guild=NS(id=int(self.bot.config['guild_id']),
                                                    name='Esports Business', member_count=251), add_roles=AsyncMock())

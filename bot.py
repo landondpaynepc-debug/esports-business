@@ -33,7 +33,9 @@ def load_config():
     int(cfg['join_role_id'])
     int(cfg['welcome']['channel_id'])
     int(cfg['verification']['role_id'])
-    for value in cfg['channels'].values():
+    for name, value in cfg['channels'].items():
+        if name == 'marketplace' and value is None:
+            continue
         int(value)
     for kind in ('general', 'ownership', 'paid'):
         int(cfg['tickets'][kind]['category_id'])
@@ -224,7 +226,8 @@ class EsportsBot(discord.Client):
     async def refresh_existing_panels(self):
         """Refresh existing panels without creating duplicate public posts."""
         async with self.setup_lock:
-            targets = {name: self.config['channels'][name] for name in ('dashboard', 'marketplace', 'support')}
+            targets = {name: self.config['channels'][name] for name in ('dashboard', 'marketplace', 'support')
+                       if self.config['channels'].get(name)}
             verification_channel = self.config['verification'].get('channel_id')
             if verification_channel:
                 targets[f'verification:{verification_channel}'] = verification_channel
@@ -283,6 +286,8 @@ class EsportsBot(discord.Client):
     async def preflight(self):
         found = {}
         for name, channel_id in self.config['channels'].items():
+            if name == 'marketplace' and not channel_id:
+                continue
             channel = await self.channel(channel_id)
             perms = channel.permissions_for(channel.guild.me)
             required = ('view_channel', 'send_messages', 'read_message_history', 'attach_files', 'embed_links')
@@ -404,6 +409,8 @@ class EsportsBot(discord.Client):
                     await respond(interaction, f'Setup could not finish: {error}')
                     return
                 for name in ('dashboard', 'marketplace', 'support'):
+                    if name not in channels:
+                        continue
                     channel = channels[name]
                     row = self.store.db.execute('SELECT message_id FROM panels WHERE name=?', (name,)).fetchone()
                     message = None
@@ -422,7 +429,7 @@ class EsportsBot(discord.Client):
                     finally:
                         for file in files:
                             file.close()
-                await respond(interaction, 'Dashboard, marketplace and support panels are ready. Careers is disabled. '
+                await respond(interaction, 'Configured dashboard and ticket panels are ready. Careers is disabled. '
                               'Staff access is controlled by staff_role_ids in config.json; empty lists mean administrators only.')
 
         @self.tree.command(name='help', description=f'View {self.config["name"]} commands and support links.')
