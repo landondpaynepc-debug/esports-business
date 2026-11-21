@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Verify • Esports Business",
-  description: "Verify your Esports Business membership using Discord’s official sign-in.",
+  title: "Verify • Fish Community Hub",
+  description: "Verify your Fish Community Hub membership using Discord’s official sign-in.",
   robots: {index:false, follow:false},
   icons: {
     icon: "/favicon.svg",

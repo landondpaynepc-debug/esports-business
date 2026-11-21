@@ -14,7 +14,7 @@ WELCOME_MESSAGES = (
     'A new member, a new opportunity—let’s grow together!',
     'Check out the dashboard and see what’s happening!',
     'The community just got better with you here!',
-    'Settle in and get ready to connect with fellow esports fans!',
+    'Dive in and get ready to connect with the community!',
     'Thanks for joining us. We can’t wait to see what you bring!',
 )
 

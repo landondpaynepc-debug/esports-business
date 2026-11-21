@@ -1,4 +1,4 @@
-"""Esports Business. Run one instance with `python bot.py`."""
+"""Fish Community Hub. Run one instance with `python bot.py`."""
 import asyncio
 import copy
 import json
@@ -225,6 +225,9 @@ class EsportsBot(discord.Client):
         """Refresh existing panels without creating duplicate public posts."""
         async with self.setup_lock:
             targets = {name: self.config['channels'][name] for name in ('dashboard', 'marketplace', 'support')}
+            verification_channel = self.config['verification'].get('channel_id')
+            if verification_channel:
+                targets[f'verification:{verification_channel}'] = verification_channel
             for row in self.store.db.execute("SELECT name FROM panels WHERE name LIKE 'verification:%'").fetchall():
                 targets[row['name']] = row['name'].split(':', 1)[1]
             signatures = {'dashboard': 'esports:rules:v1', 'marketplace': 'esports:purchase:v1',
@@ -237,9 +240,12 @@ class EsportsBot(discord.Client):
                     if row:
                         with suppress(discord.NotFound):
                             message = await channel.fetch_message(row['message_id'])
-                    if message is None and name in signatures:
+                    signature = signatures.get(name)
+                    if name.startswith('verification:'):
+                        signature = self.config['branding']['verification_url']
+                    if message is None and signature:
                         async for candidate in channel.history(limit=50):
-                            if candidate.author.id == self.user.id and signatures[name] in json.dumps(
+                            if candidate.author.id == self.user.id and signature in json.dumps(
                                     [item.to_dict() for item in candidate.components]):
                                 message = candidate
                                 break
@@ -261,7 +267,7 @@ class EsportsBot(discord.Client):
 
     async def valid_interaction(self, interaction):
         if interaction.guild_id != int(self.config['guild_id']) or not isinstance(interaction.user, discord.Member):
-            await respond(interaction, 'This bot is configured for the Esports Business server only.')
+            await respond(interaction, f'This bot is configured for the {self.config["name"]} server only.')
             return False
         if not self.ready_for_tickets:
             await respond(interaction, 'The bot is starting or needs an administrator to check its console. Please try again shortly.')
@@ -313,7 +319,9 @@ class EsportsBot(discord.Client):
             if not isinstance(channel, discord.TextChannel) or channel.category_id != category.id:
                 continue
             ticket = self.store.ticket(channel.id)
-            match = re.fullmatch(r'Esports Business \| Ownership Support \| Owner: (\d+)', channel.topic or '')
+            # Recognize tickets from before the rebrand when recovering lost local state.
+            brands = '|'.join(re.escape(name) for name in (self.config['name'], 'Esports Business'))
+            match = re.fullmatch(rf'(?:{brands}) \| Ownership Support \| Owner: (\d+)', channel.topic or '')
             if ticket and ticket['kind'] == 'ownership' and ticket['status'] != 'closed':
                 owner_id = ticket['owner_id']
             elif match:
@@ -417,10 +425,10 @@ class EsportsBot(discord.Client):
                 await respond(interaction, 'Dashboard, marketplace and support panels are ready. Careers is disabled. '
                               'Staff access is controlled by staff_role_ids in config.json; empty lists mean administrators only.')
 
-        @self.tree.command(name='help', description='View Esports Business commands and support links.')
+        @self.tree.command(name='help', description=f'View {self.config["name"]} commands and support links.')
         async def help_command(interaction: discord.Interaction):
             await respond(interaction,
-                f'**Esports Business**\nDashboard: <#{self.config["channels"]["dashboard"]}>\n'
+                f'**{self.config["name"]}**\nDashboard: <#{self.config["channels"]["dashboard"]}>\n'
                 f'Support: <#{self.config["channels"]["support"]}>\n\n'
                 '**Moderation:** /warn, /warnings, /clearwarn, /timeout, /untimeout, /kick, /ban, /unban, /purge\n'
                 '**Tickets:** /claim, /close (also available as buttons)\n'
@@ -475,7 +483,7 @@ class EsportsBot(discord.Client):
             overwrites = ticket_overwrites(interaction.guild, interaction.user, roles)
             channel = await interaction.guild.create_text_channel(
                 name=f'{kind}-{interaction.user.id}', category=category,
-                topic=f'Esports Business | {settings["label"]} | Owner: {interaction.user.id}',
+                topic=f'{self.config["name"]} | {settings["label"]} | Owner: {interaction.user.id}',
                 overwrites=overwrites, reason=f'Ticket opened by {interaction.user.id}',
             )
             # Persist immediately after channel creation, before sending messages.
@@ -550,6 +558,7 @@ class EsportsBot(discord.Client):
                 paths, count = await export_transcript(
                     channel, ticket, interaction.user, reason,
                     BASE / 'data' / 'transcripts' / str(channel.id) / str(interaction.id), cutoff,
+                    brand_name=self.config['name'],
                 )
                 archive = await self.channel(self.config['channels']['transcripts'])
                 for number, path in enumerate(paths, 1):

@@ -1,5 +1,5 @@
 {
-  "name": "Esports Business",
+  "name": "Fish Community Hub",
   "guild_id": "1254579248237379604",
   "join_role_id": "1564325606907453532",
   "welcome": {
@@ -7,6 +7,7 @@
     "icon": "<:icon:1569075326540185700>"
   },
   "verification": {
+    "channel_id": "1564362674991534090",
     "role_id": "1564362600874254368",
     "logs_channel_id": "1564364557693091951"
   },

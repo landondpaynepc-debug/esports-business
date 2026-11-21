@@ -1,4 +1,4 @@
-# Esports Business verification
+# Fish Community Hub verification
 
 Official Discord OAuth sign-in, hosted as a Sites server application. Website: https://esports-business-verification.stellarbutterfly2.chatgpt.site
 
@@ -13,7 +13,7 @@ The landing page shows an unavailable notice until both secrets exist. Check the
 
 Only the `identify` scope is requested. Signed 10-minute browser state, PKCE, issuer checking, server-side token exchange, and fresh guild membership checks protect role changes. The authenticated Discord ID determines the member; incoming user/role/guild IDs are never trusted. Access tokens are kept only in request memory and revoked afterwards. Signed result cookies expire after 5 minutes and cannot authorize any role change. This is account sign-in, not a CAPTCHA. Successful removals post a log embed; already-verified visits do not spam logs.
 
-All banners use the main repository's `branding.json` and `assets/banner.gif`. There are no copied banner files or bottom banners. Update the banner URL version in that file when changing the GIF. Bot panels update on startup where their messages can be found; the site reads shared branding on each page load.
+All banners use the main repository's `branding.json` and `assets/banner.jpg`. There are no copied banner files or bottom banners. Update the banner URL version in that file when changing the banner. Bot panels update on startup where their messages can be found; the site reads shared branding on each page load.
 
 ## Development
 

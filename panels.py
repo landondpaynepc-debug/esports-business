@@ -1,4 +1,4 @@
-"""Discord Components V2 panels using the supplied animated top banner."""
+"""Discord Components V2 panels using the shared top banner."""
 import logging
 import discord
 from discord import ui
@@ -32,14 +32,14 @@ class SafeModal(ui.Modal):
         await respond(interaction, 'That action failed. Your ticket has not been intentionally deleted. Contact an administrator.')
 
 
-class TicketForm(SafeModal, title='Esports Business • Open a ticket'):
+class TicketForm(SafeModal):
     subject = ui.TextInput(label='Subject', placeholder='What can we help you with?', max_length=100)
     details = ui.TextInput(label='Details', style=discord.TextStyle.paragraph,
                            placeholder='Describe your request. Do not include passwords or payment card details.',
                            min_length=10, max_length=1500)
 
     def __init__(self, bot, kind):
-        super().__init__(timeout=300)
+        super().__init__(title=f'{bot.config["name"]} • Open a ticket', timeout=300)
         self.bot, self.kind = bot, kind
 
     async def on_submit(self, interaction):
@@ -106,7 +106,7 @@ def panel(bot, kind):
     children = [ui.MediaGallery(discord.MediaGalleryItem(cfg['branding']['banner_url'])), ui.Separator()]
     if kind == 'dashboard':
         children.append(ui.TextDisplay(
-            '# Esports Business\nWelcome to the community dashboard.\n\n'
+            f'# {cfg["name"]}\nWelcome to the community dashboard.\n\n'
             '**Guidelines** — read our community rules.\n'
             '**Marketplace** — explore advertisement packages.\n'
             '**Ticket Support** — get help from our team.\n'

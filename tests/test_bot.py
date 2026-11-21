@@ -15,7 +15,7 @@ import discord
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bot import EsportsBot, is_staff, load_config, ticket_overwrites
 from moderation import target_error
-from panels import panel, TicketControls
+from panels import panel, TicketControls, TicketForm
 from storage import Store
 from transcripts import export_transcript, render_message
 from welcome import WELCOME_MESSAGES, choose_greeting, welcome_panel
@@ -256,6 +256,23 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.bot.config['branding']['verification_url'], payload)
         self.assertNotIn('esports:verify:v1', payload)
         self.assertNotIn('footer.png', payload)
+        self.assertIn('Fish Community Hub', payload)
+        self.assertNotIn('Esports Business', payload)
+        self.assertIn('Fish Community Hub', json.dumps(panel(self.bot, 'dashboard').to_components()))
+        self.assertEqual(TicketForm(self.bot, 'general').title, 'Fish Community Hub • Open a ticket')
+
+    async def test_verification_panel_refresh_recovers_without_saved_message(self):
+        candidate = NS(id=12345, author=NS(id=99), edit=AsyncMock(), components=[
+            NS(to_dict=lambda: {'type': 2, 'url': self.bot.config['branding']['verification_url']})])
+        async def history(**kwargs):
+            yield candidate
+        self.bot.channel = AsyncMock(return_value=NS(history=history))
+        await EsportsBot.refresh_existing_panels(self.bot)
+        candidate.edit.assert_awaited_once()
+        self.assertIn('Fish Community Hub', json.dumps(candidate.edit.await_args.kwargs['view'].to_components()))
+        saved = self.bot.store.db.execute('SELECT message_id FROM panels WHERE name=?',
+            ('verification:1564362674991534090',)).fetchone()
+        self.assertEqual(saved['message_id'], 12345)
 
     async def test_old_verify_button_redirects_without_granting_access(self):
         interaction = self.interaction()
@@ -407,7 +424,12 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         unrelated.category_id = 500
         unrelated.topic = 'Unrelated channel'
         unrelated.edit = AsyncMock()
-        guild.text_channels = [ticket_channel, unrelated]
+        rebranded = Mock(spec=discord.TextChannel)
+        rebranded.id = 102
+        rebranded.category_id = 500
+        rebranded.topic = 'Fish Community Hub | Ownership Support | Owner: 12'
+        rebranded.edit = AsyncMock()
+        guild.text_channels = [ticket_channel, unrelated, rebranded]
         guild.fetch_channels = AsyncMock(side_effect=discord.InvalidData(
             'Unknown channel type 20 for channel ID 1569462259506225216.'))
         self.bot.channel = AsyncMock(return_value=category)
@@ -417,6 +439,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({target.id for target in overwrites}, {1, 99, 12, 1569278707833503776})
         self.assertFalse(overwrites[guild.default_role].view_channel)
         unrelated.edit.assert_not_awaited()
+        rebranded.edit.assert_awaited_once()
         guild.fetch_channels.assert_not_awaited()
 
     async def test_unknown_server_channel_does_not_block_ticket_startup(self):

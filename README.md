@@ -1,4 +1,4 @@
-# Esports Business
+# Fish Community Hub
 
 A Discord bot with branded dashboard and marketplace panels, private support tickets, HTML transcripts, and simple moderation. Python 3.11+ is required.
 
@@ -8,7 +8,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 - New-member role assignment on join and a persistent **Verify** button that removes that role.
 - **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
-- Your animated GIF at the top of every panel, with no bottom banners or colored side stripes. The GIF is bundled in `assets/banner.gif` so the bot does not depend on the original Discord download link.
+- Your supplied fish banner at the top of every panel, with no bottom banners or colored side stripes. The image is bundled in `assets/banner.jpg` so the bot does not depend on the original Discord download link.
 - Marketplace prices from your reference, with a button to open a purchase ticket.
 - Exactly three ticket choices: **General Support**, **Ownership Support**, and **Paid Ad/SPGW**.
 - Private ticket channels with **Claim** and **Close** buttons and equivalent slash commands.
@@ -39,7 +39,7 @@ Each new ticket pings the opener and the same staff roles that receive access to
 
 ## Start the bot
 
-1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Esports Business**. The code cannot change the application's display name.
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Fish Community Hub**. The code cannot change the application's display name.
 2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent** for ticket transcripts and **Server Members Intent** for automatic welcomes and new-member role assignment. The Presence intent is not required.
 3. Install the application in your server with the `bot` and `applications.commands` scopes. Give it **View Channels**, **Send Messages**, **Read Message History**, **Embed Links**, **Attach Files**, **Manage Channels**, **Manage Roles** (needed to update channel permission overwrites), **Manage Messages**, **Moderate Members**, **Kick Members**, and **Ban Members**. Move its role above members it should moderate and above the configured staff role. Administrator permission is not required.
 4. Download or clone this repository and open a terminal in its folder.
@@ -71,7 +71,7 @@ The bot stays online only while this process is running. This repository contain
 
 New joins in your server receive a compact panel in channel `1564325669264167059`:
 
-> Welcome @member to **Esports Business**! We hope you enjoy your stay.
+> Welcome @member to **Fish Community Hub**! We hope you enjoy your stay.
 
 The actual server name is used automatically. Each panel starts with `<:icon:1569075326540185700>` and includes a disabled **Members: 251** button showing the total count at join time, plus a **Dashboard** link to `https://discord.com/channels/1254579248237379604/1564325646761467956`. These panels have no banner images or colored side stripe.
 
@@ -85,7 +85,7 @@ The bot needs View Channel and Send Messages in the welcome channel, plus Use Ex
 
 On each new join, the bot assigns member role **`1564325606907453532`** (`join_role_id`) and unverified role **`1564362600874254368`** before sending the welcome. **Verify** opens the verification website. Successful official Discord sign-in removes only the unverified role; the member role stays. Existing members are not assigned roles in bulk. Old Verify buttons also redirect and never grant access by themselves.
 
-As an administrator, run **`/verification-setup`** in the verification channel, or choose a destination with **`/verification-setup channel:#your-channel`**. The command posts a panel with your animated banner, a verification description, and the Verify button on the right. Repeating the command updates the saved panel in that channel while its database record remains available. The button stays functional after a restart.
+As an administrator, run **`/verification-setup`** in the verification channel, or choose a destination with **`/verification-setup channel:#your-channel`**. The command posts a panel with your shared banner, a verification description, and the Verify button on the right. Repeating the command updates the saved panel in that channel while its database record remains available. The button stays functional after a restart.
 
 Give the bot **Manage Roles** and put its highest role above both `1564325606907453532` and `1564362600874254368`. Enable Server Members Intent for automatic assignment. The unverified role must be able to view the verification channel. Configure channel restrictions to limit access before verification, accounting for both roles. Discord sign-in proves account ownership; it is not a CAPTCHA or a real-world identity check.
 
@@ -109,9 +109,9 @@ Edit `staff_role_ids` in `config.json` and restart to change ticket staff. Owner
 
 ## Payments and panel text
 
-The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your animated GIF is included unchanged. **`branding.json` is the single shared banner setting**: dashboard, marketplace, support, guidelines, verification panel, and website all use its permanent banner URL. The website reads this setting from GitHub on each page request; no expiring Discord attachment URL is used. Change the URL's `v` query when replacing `assets/banner.gif` to refresh caches. No bottom banners are used. Welcomes retain the compact layout without a banner.
+The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your supplied JPEG banner is included unchanged. **`branding.json` is the single shared banner setting**: dashboard, marketplace, support, guidelines, verification panel, and website all use its permanent banner URL. The website reads this setting from GitHub on each page request; no expiring Discord attachment URL is used. Change the URL's `v` query when replacing `assets/banner.jpg` to refresh caches. No bottom banners are used. Welcomes retain the compact layout without a banner.
 
-On startup the bot refreshes saved verification panels and finds existing public panels in the latest 50 messages of their configured channels, without creating new posts. Run `/setup` or `/verification-setup` for panels older than that or verification panel IDs lost when ephemeral storage resets. Historical ephemeral guideline messages cannot be edited; newly opened guidelines use the current banner.
+On startup the bot refreshes saved verification panels and finds existing public and configured verification panels in the latest 50 messages of their configured channels, without creating new posts. Run `/setup` or `/verification-setup` for panels older than that or verification panels in other channels whose IDs were lost when ephemeral storage resets. Historical ephemeral guideline messages cannot be edited; newly opened guidelines use the current banner.
 
 `paypal_url` is blank because the reference image's recipient was not confirmed. Add your own HTTPS PayPal link to display a payment button, then restart and rerun `/setup`. Without it, customers open a Paid Ad/SPGW ticket to arrange payment with staff. The bot does not process payments, confirm purchases automatically, or schedule advertising pings.
 

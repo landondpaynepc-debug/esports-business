@@ -36,19 +36,20 @@ def render_message(message):
     )
 
 
-async def export_transcript(channel, ticket, closer, reason, directory: Path, cutoff, max_bytes=2_000_000):
+async def export_transcript(channel, ticket, closer, reason, directory: Path, cutoff, max_bytes=2_000_000,
+                            brand_name='Fish Community Hub'):
     """History failures propagate; callers must never delete a channel on failure."""
     directory.mkdir(parents=True, exist_ok=True)
     header = (
         '<!doctype html><html lang="en"><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'">'
-        '<title>Esports Business — Ticket transcript</title>'
+        f'<title>{escape(brand_name)} — Ticket transcript</title>'
         '<style>body{font:15px system-ui;background:#111827;color:#e5e7eb;max-width:1000px;'
         'margin:32px auto;padding:0 20px}article{border-top:1px solid #374151;padding:14px 0}'
         'h1{color:#ff6154}h3{margin-bottom:5px}small{color:#9ca3af}'
         'pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}a{color:#93c5fd}</style>'
-        f'<h1>Esports Business — #{escape(channel.name)}</h1>'
+        f'<h1>{escape(brand_name)} — #{escape(channel.name)}</h1>'
         f'<p>Channel: {channel.id} | Type: {escape(ticket["kind"])} | Owner: {ticket["owner_id"]}</p>'
         f'<p>Opened: {escape(ticket["created_at"])} | Claimed by: {ticket["claimed_by"] or "Unclaimed"}</p>'
         f'<p>Closed by: {escape(closer)} ({closer.id}) | Reason: {escape(reason)}</p>'

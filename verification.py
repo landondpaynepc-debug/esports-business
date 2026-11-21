@@ -36,7 +36,7 @@ def verification_panel(bot, *, legacy=False):
         ui.MediaGallery(discord.MediaGalleryItem(bot.config['branding']['banner_url'])),
         ui.TextDisplay(
             '**Verification**\n\n'
-            'Welcome to **Esports Business**! Click **Verify** to open our website and sign in with Discord. '
+            f'Welcome to **{bot.config["name"]}**! Click **Verify** to open our website and sign in with Discord. '
             'After successful sign-in, your new-member role will be removed automatically.'
         ),
         ui.Separator(),
