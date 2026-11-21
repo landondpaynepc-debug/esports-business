@@ -31,11 +31,11 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 | Ownership Support category | `1565668743307067432` |
 | Paid Ad/SPGW category | `1565668672192909382` |
 | Staff role (General Support and Paid Ad/SPGW) | `1564325589827977330` |
-| Ownership Support role | `1569278707833503776` |
+| Ownership Support role | `1569413223558680686` |
 
 These values are already set in `config.json`. IDs are strings to preserve their full precision.
 
-Each new ticket pings the opener and the same staff roles that receive access to that ticket: General Support and Paid Ad/SPGW notify `1564325589827977330`, while Ownership Support notifies only `1569278707833503776`. The bot can mention non-mentionable staff roles inside ticket channels; message notifications are restricted to the configured roles and opener. Reopening the form for an existing ticket does not ping staff again.
+Each new ticket pings the opener and the same staff roles that receive access to that ticket: General Support and Paid Ad/SPGW notify `1564325589827977330`, while Ownership Support notifies only `1569413223558680686`. The bot can mention non-mentionable staff roles inside ticket channels; message notifications are restricted to the configured roles and opener. Reopening the form for an existing ticket does not ping staff again.
 
 ## Start the bot
 
@@ -101,7 +101,7 @@ The website uses authorization-code sign-in with PKCE, signed short-lived browse
 
 ## Staff and privacy
 
-General Support and Paid Ad/SPGW use staff role `1564325589827977330`. **Ownership Support uses only role `1569278707833503776` for staff access.** The ticket opener and bot retain access, and Discord administrators always bypass channel restrictions. On startup and `/setup`, existing bot-created ownership tickets in the configured ownership category have their permissions replaced to match this restriction.
+General Support and Paid Ad/SPGW use staff role `1564325589827977330`. **Ownership Support uses only role `1569413223558680686` for staff access.** The ticket opener and bot retain access, and Discord administrators always bypass channel restrictions. On startup and `/setup`, existing bot-created ownership tickets in the configured ownership category have their permissions replaced to match this restriction.
 
 Ticket channels explicitly deny `@everyone` access and allow only the opener, the bot, the configured roles, and administrators. Category permissions are not inherited. Staff roles provide ticket access; moderation commands still require the corresponding Discord moderation permissions.
 

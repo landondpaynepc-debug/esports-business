@@ -75,7 +75,7 @@ class StoreTests(unittest.TestCase):
     def test_ownership_role_excludes_general_staff(self):
         cfg = load_config()
         staff = NS(guild_permissions=NS(administrator=False), roles=[NS(id=1564325589827977330)])
-        owner_staff = NS(guild_permissions=NS(administrator=False), roles=[NS(id=1569278707833503776)])
+        owner_staff = NS(guild_permissions=NS(administrator=False), roles=[NS(id=1569413223558680686)])
         self.assertFalse(is_staff(staff, 'ownership', cfg))
         self.assertTrue(is_staff(owner_staff, 'ownership', cfg))
         self.assertTrue(is_staff(staff, 'general', cfg))
@@ -315,12 +315,12 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_new_tickets_ping_only_their_assigned_staff_and_opener_once(self):
         staff_roles = {}
-        for role_id in (1564325589827977330, 1569278707833503776):
+        for role_id in (1564325589827977330, 1569413223558680686):
             role = Mock(spec=discord.Role, id=role_id, managed=False)
             staff_roles[role_id] = role
         for index, (kind, expected_role_id) in enumerate((
                 ('general', 1564325589827977330),
-                ('ownership', 1569278707833503776),
+                ('ownership', 1569413223558680686),
                 ('paid', 1564325589827977330))):
             with self.subTest(kind=kind):
                 interaction = self.interaction()
@@ -411,7 +411,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.bot.store.ticket(100)['status'], 'closed')
 
     async def test_existing_ownership_ticket_permissions_are_replaced(self):
-        owner, staff = discord.Object(12), discord.Object(1569278707833503776)
+        owner, staff = discord.Object(12), discord.Object(1569413223558680686)
         guild = NS(default_role=discord.Object(1), me=discord.Object(99), get_member=lambda _: owner)
         category = NS(id=500, guild=guild)
         ticket_channel = Mock(spec=discord.TextChannel)
@@ -436,7 +436,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.bot, 'staff_roles', return_value=[staff]):
             await self.bot.sync_ownership_permissions()
         overwrites = ticket_channel.edit.await_args.kwargs['overwrites']
-        self.assertEqual({target.id for target in overwrites}, {1, 99, 12, 1569278707833503776})
+        self.assertEqual({target.id for target in overwrites}, {1, 99, 12, 1569413223558680686})
         self.assertFalse(overwrites[guild.default_role].view_channel)
         unrelated.edit.assert_not_awaited()
         rebranded.edit.assert_awaited_once()
