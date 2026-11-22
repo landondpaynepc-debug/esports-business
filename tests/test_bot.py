@@ -163,7 +163,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(item.disabled)
         self.assertEqual(len(ids), len(set(ids)))
         self.assertTrue(TicketControls(self.bot).is_persistent())
-        self.assertEqual(len(self.bot.tree.get_commands()), 15)
+        self.assertEqual(len(self.bot.tree.get_commands()), 16)
 
     async def test_welcome_panel_matches_requested_layout(self):
         member = NS(id=12, mention='<@12>', guild=NS(name='Esports Business'))

@@ -136,6 +136,8 @@ class EsportsBot(discord.Client):
         self.last_welcome_greeting = None
         from moderation import register_moderation
         register_moderation(self)
+        from announcements import register_announcements
+        register_announcements(self)
         self.register_commands()
 
     def lock(self, key):
@@ -439,7 +441,7 @@ class EsportsBot(discord.Client):
                 f'Support: <#{self.config["channels"]["support"]}>\n\n'
                 '**Moderation:** /warn, /warnings, /clearwarn, /timeout, /untimeout, /kick, /ban, /unban, /purge\n'
                 '**Tickets:** /claim, /close (also available as buttons)\n'
-                '**Administrators:** /setup, /welcome-preview, /verification-setup\nCareers is coming soon.')
+                '**Administrators:** /announce, /setup, /welcome-preview, /verification-setup\nCareers is coming soon.')
 
         @self.tree.command(name='claim', description='Claim the current support ticket (ticket staff only).')
         async def claim(interaction: discord.Interaction):

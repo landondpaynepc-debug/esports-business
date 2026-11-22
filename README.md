@@ -121,6 +121,7 @@ On startup the bot refreshes saved verification panels and finds existing public
 | Command | Who can use it | Purpose |
 | --- | --- | --- |
 | `/help` | Everyone | Commands and support links |
+| `/announce description [image_above] [image_below] [logo] [channel] [use_banner]` | Administrators | Post a Components V2 announcement; only the description is required |
 | `/setup` | Administrators | Publish/update panels |
 | `/welcome-preview` | Administrators | Preview the randomized welcome panel privately |
 | `/verification-setup [channel]` | Administrators | Post/update the Verify panel in the current or selected text channel |
@@ -137,6 +138,8 @@ On startup the bot refreshes saved verification panels and finds existing public
 | `/purge amount` | Manage Messages | Delete up to 100 recent, unpinned messages |
 
 Moderation respects both the moderator's and bot's role hierarchy. Purge is disabled in ticket, transcript, and panel channels. Warnings are saved privately; no warning DM is sent automatically.
+
+For announcements, enter `/announce` and fill in **description** (1–4,000 characters). The supplied **Fishy Community Hub** banner appears above the text automatically, using `announcement_banner_url` in `branding.json`. Optionally upload **image_above** to replace that banner, **image_below** beneath the text, and/or **logo** as a small thumbnail beside the description. Upload PNG, JPG, GIF, or WebP files; custom images are attached to the announcement itself. Set **use_banner:false** for text without the default banner. All image fields are optional. The command posts in the current text/announcement channel unless **channel** is selected. Announcements and private confirmations use Components V2 with no colored side stripe; mentions do not send pings. The bot needs View Channel and Send Messages in the destination, Embed Links for images, and Attach Files for custom uploads. There is no automatic cross-post to channel followers.
 
 ## Transcripts and persistence
 
