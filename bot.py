@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
+from aiohttp import web
 from discord import app_commands
 from discord.ext import tasks
 from dotenv import load_dotenv
@@ -132,6 +133,7 @@ class EsportsBot(discord.Client):
         self.locks = {}
         self.setup_lock = asyncio.Lock()
         self.started = False
+        self.health_runner = None
         self.ready_for_tickets = False
         self.last_welcome_greeting = None
         from moderation import register_moderation
@@ -147,6 +149,11 @@ class EsportsBot(discord.Client):
         # Every panel and the website use the same permanent banner URL.
         return []
 
+    async def health(self, request):
+        if self.is_ready():
+            return web.Response(text='ready')
+        return web.Response(status=503, text='connecting')
+
     async def setup_hook(self):
         for kind in ('dashboard', 'marketplace', 'support'):
             self.add_view(panel(self, kind))
@@ -157,6 +164,14 @@ class EsportsBot(discord.Client):
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
         self.member_count_status.start()
+        if os.getenv('PORT') or os.getenv('RENDER'):
+            app = web.Application()
+            app.router.add_get('/health', self.health)
+            self.health_runner = web.AppRunner(app)
+            await self.health_runner.setup()
+            port = int(os.getenv('PORT', '10000'))
+            await web.TCPSite(self.health_runner, '0.0.0.0', port).start()
+            log.info('Listening on port %s for health checks.', port)
 
     @tasks.loop(minutes=1)
     async def member_count_status(self):
@@ -262,6 +277,8 @@ class EsportsBot(discord.Client):
                     log.exception('Could not refresh panel %s; use /setup or /verification-setup to retry.', name)
 
     async def close(self):
+        if self.health_runner is not None:
+            await self.health_runner.cleanup()
         task = self.member_count_status.get_task()
         self.member_count_status.cancel()
         if task is not None:
