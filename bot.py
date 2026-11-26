@@ -451,6 +451,38 @@ class EsportsBot(discord.Client):
                 await respond(interaction, 'Configured dashboard and ticket panels are ready. Careers is disabled. '
                               'Staff access is controlled by staff_role_ids in config.json; empty lists mean administrators only.')
 
+        @self.tree.command(name='showcase', description='Show everyone how to use Fish Community Hub.')
+        async def showcase(interaction: discord.Interaction):
+            channels = self.config['channels']
+            kinds = ', '.join(ticket['label'] for ticket in self.config['tickets'].values())
+            market = (f"Browse ad packages in <#{channels['marketplace']}>."
+                      if channels.get('marketplace') else "Ask about ads and sponsored giveaways in a Paid Ad/SPGW ticket.")
+            view = discord.ui.LayoutView(timeout=None)
+            view.add_item(discord.ui.Container(
+                discord.ui.MediaGallery(discord.MediaGalleryItem(self.config['branding']['banner_url'])),
+                discord.ui.TextDisplay(f"# {self.config['name']} • Bot showcase"),
+                discord.ui.TextDisplay(
+                    f"**Getting started**\nNew arrivals receive a welcome and a join role. "
+                    f"Verify in <#{self.config['verification']['channel_id']}> and read the guidelines "
+                    f"in <#{channels['dashboard']}>. The bot's status shows the server member count."),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(
+                    f"**Private support**\nOpen <#{channels['support']}>, choose {kinds}, "
+                    "and describe what you need. Ticket staff can claim requests with `/claim`. "
+                    "Closing a ticket with `/close` saves its transcript. " + market),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(
+                    "**Moderation**\nRecord and review warnings with `/warn` and `/warnings`. "
+                    "Administrators can remove one with `/clearwarn`. Authorized moderators can use "
+                    "`/timeout`, `/untimeout`, `/kick`, `/ban`, `/unban`, and `/purge`."),
+                discord.ui.TextDisplay(
+                    "**Administrator tools**\nPublish panels with `/setup`, place the Verify button "
+                    "with `/verification-setup`, and preview greetings with `/welcome-preview`. "
+                    "Use `/announce` for announcements with optional images and a logo."),
+                discord.ui.TextDisplay("Use `/help` for a private command list and channel links."),
+            ))
+            await interaction.response.send_message(view=view, allowed_mentions=discord.AllowedMentions.none())
+
         @self.tree.command(name='help', description=f'View {self.config["name"]} commands and support links.')
         async def help_command(interaction: discord.Interaction):
             await respond(interaction,
