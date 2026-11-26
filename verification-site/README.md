@@ -1,4 +1,4 @@
-# Fish Community Hub verification
+# Royal Services verification
 
 Official Discord OAuth sign-in, hosted as a Sites server application. Website: https://esports-business-verification.stellarbutterfly2.chatgpt.site
 

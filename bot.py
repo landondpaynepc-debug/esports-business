@@ -1,4 +1,4 @@
-"""Fish Community Hub. Run one instance with `python bot.py`."""
+"""Royal Services. Run one instance with `python bot.py`."""
 import asyncio
 import copy
 import json
@@ -228,6 +228,12 @@ class EsportsBot(discord.Client):
         if self.started:
             return
         self.started = True
+        if self.user and self.user.name != self.config['name']:
+            try:
+                await self.user.edit(username=self.config['name'])
+                log.info('Updated Discord bot username to %s.', self.config['name'])
+            except discord.HTTPException:
+                log.exception('Discord could not update the bot username.')
         log.info('Connected as %s. Recovering any interrupted ticket closures.', self.user)
         try:
             await self.recover_closures()
@@ -344,7 +350,7 @@ class EsportsBot(discord.Client):
                 continue
             ticket = self.store.ticket(channel.id)
             # Recognize tickets from before the rebrand when recovering lost local state.
-            brands = '|'.join(re.escape(name) for name in (self.config['name'], 'Esports Business'))
+            brands = '|'.join(re.escape(name) for name in (self.config['name'], 'Fish Community Hub', 'Esports Business'))
             match = re.fullmatch(rf'(?:{brands}) \| Ownership Support \| Owner: (\d+)', channel.topic or '')
             if ticket and ticket['kind'] == 'ownership' and ticket['status'] != 'closed':
                 owner_id = ticket['owner_id']
@@ -451,7 +457,7 @@ class EsportsBot(discord.Client):
                 await respond(interaction, 'Configured dashboard and ticket panels are ready. Careers is disabled. '
                               'Staff access is controlled by staff_role_ids in config.json; empty lists mean administrators only.')
 
-        @self.tree.command(name='showcase', description='Show everyone how to use Fish Community Hub.')
+        @self.tree.command(name='showcase', description='Show everyone how to use Royal Services.')
         async def showcase(interaction: discord.Interaction):
             channels = self.config['channels']
             kinds = ', '.join(ticket['label'] for ticket in self.config['tickets'].values())

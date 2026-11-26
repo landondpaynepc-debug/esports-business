@@ -90,7 +90,7 @@ def register_announcements(bot):
         image_below='Optional image uploaded below the description.',
         logo='Optional small logo displayed beside the description.',
         channel='Optional destination. Defaults to the channel where you run this command.',
-        use_banner='Show the Fishy banner when no custom top image is uploaded. Defaults to true.',
+        use_banner='Show the Royal Services banner when no custom top image is uploaded. Defaults to true.',
     )
     async def announce(interaction: discord.Interaction, description: app_commands.Range[str, 1, 4000],
                        image_above: discord.Attachment | None = None,

@@ -37,7 +37,7 @@ def render_message(message):
 
 
 async def export_transcript(channel, ticket, closer, reason, directory: Path, cutoff, max_bytes=2_000_000,
-                            brand_name='Fish Community Hub'):
+                            brand_name='Royal Services'):
     """History failures propagate; callers must never delete a channel on failure."""
     directory.mkdir(parents=True, exist_ok=True)
     header = (

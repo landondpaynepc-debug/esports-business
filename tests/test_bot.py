@@ -170,7 +170,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         view = welcome_panel(member, self.bot.config, WELCOME_MESSAGES[0], 251)
         payload = json.dumps(view.to_components())
         self.assertIn('<:icon:1569075326540185700>', payload)
-        self.assertIn('Welcome <@12> to **Esports Business**! We hope you enjoy your stay.', payload)
+        self.assertIn('Welcome <@12> to **Royal Services**! We hope you enjoy your stay.', payload)
         self.assertIsNone(view.children[0].accent_colour)
         buttons = [item for item in view.walk_children() if isinstance(item, discord.ui.Button)]
         self.assertEqual(buttons[0].label, 'Members: 251')
@@ -276,10 +276,10 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(self.bot.config['branding']['verification_url'], payload)
         self.assertNotIn('esports:verify:v1', payload)
         self.assertNotIn('footer.png', payload)
-        self.assertIn('Fish Community Hub', payload)
+        self.assertIn('Royal Services', payload)
         self.assertNotIn('Esports Business', payload)
-        self.assertIn('Fish Community Hub', json.dumps(panel(self.bot, 'dashboard').to_components()))
-        self.assertEqual(TicketForm(self.bot, 'general').title, 'Fish Community Hub • Open a ticket')
+        self.assertIn('Royal Services', json.dumps(panel(self.bot, 'dashboard').to_components()))
+        self.assertEqual(TicketForm(self.bot, 'general').title, 'Royal Services • Open a ticket')
 
     async def test_verification_panel_refresh_recovers_without_saved_message(self):
         candidate = NS(id=12345, author=NS(id=99), edit=AsyncMock(), components=[
@@ -289,7 +289,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
         self.bot.channel = AsyncMock(return_value=NS(history=history))
         await EsportsBot.refresh_existing_panels(self.bot)
         candidate.edit.assert_awaited_once()
-        self.assertIn('Fish Community Hub', json.dumps(candidate.edit.await_args.kwargs['view'].to_components()))
+        self.assertIn('Royal Services', json.dumps(candidate.edit.await_args.kwargs['view'].to_components()))
         saved = self.bot.store.db.execute('SELECT message_id FROM panels WHERE name=?',
             ('verification:1564362674991534090',)).fetchone()
         self.assertEqual(saved['message_id'], 12345)

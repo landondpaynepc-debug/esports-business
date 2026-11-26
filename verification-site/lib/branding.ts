@@ -1,4 +1,4 @@
-export const defaultBanner = 'https://raw.githubusercontent.com/landondpaynepc-debug/esports-business/main/assets/banner.jpg?v=8c85038a6d9c2234';
+export const defaultBanner = 'https://raw.githubusercontent.com/landondpaynepc-debug/esports-business/main/assets/hub-banner.gif';
 export async function bannerUrl() {
   try {
     const response = await fetch('https://raw.githubusercontent.com/landondpaynepc-debug/esports-business/main/branding.json',

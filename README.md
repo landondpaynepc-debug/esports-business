@@ -1,4 +1,4 @@
-# Fish Community Hub
+# Royal Services
 
 A Discord bot with branded dashboard and marketplace panels, private support tickets, HTML transcripts, and simple moderation. Python 3.11+ is required.
 
@@ -8,7 +8,7 @@ A Discord bot with branded dashboard and marketplace panels, private support tic
 - New-member role assignment on join and a persistent **Verify** button that removes that role.
 - **Watching 1,234 members!** status, refreshed on startup and every minute using Discord's latest approximate total member count (including bots). No extra privileged intent is required.
 - Dashboard with Guidelines, Marketplace, Ticket Support, and a **disabled Careers** button.
-- Your supplied fish banner at the top of every panel, with no bottom banners or colored side stripes. The image is bundled in `assets/banner.jpg` so the bot does not depend on the original Discord download link.
+- The Royal Services banner at the top of every panel, with no bottom banners or colored side stripes. The image is bundled in `assets/hub-banner.gif` so the bot does not depend on the original Discord download link.
 - Marketplace prices from your reference, with a button to open a purchase ticket.
 - Exactly three ticket choices: **General Support**, **Ownership Support**, and **Paid Ad/SPGW**.
 - Private ticket channels with **Claim** and **Close** buttons and equivalent slash commands.
@@ -40,7 +40,7 @@ Each new ticket pings the opener and the same staff roles that receive access to
 
 ## Start the bot
 
-1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Fish Community Hub**. The code cannot change the application's display name.
+1. Open the [Discord Developer Portal](https://discord.com/developers/applications), select your bot application, and name it **Royal Services**. The bot also updates its Discord username on startup.
 2. On **Bot**, reset any token previously pasted into chat. Enable **Message Content Intent** for ticket transcripts and **Server Members Intent** for automatic welcomes and new-member role assignment. The Presence intent is not required.
 3. Install the application in your server with the `bot` and `applications.commands` scopes. Give it **View Channels**, **Send Messages**, **Read Message History**, **Embed Links**, **Attach Files**, **Manage Channels**, **Manage Roles** (needed to update channel permission overwrites), **Manage Messages**, **Moderate Members**, **Kick Members**, and **Ban Members**. Move its role above members it should moderate and above the configured staff role. Administrator permission is not required.
 4. Download or clone this repository and open a terminal in its folder.
@@ -72,9 +72,9 @@ The bot stays online only while this process is running. This repository contain
 
 New joins in your server receive a compact panel in channel `1564325669264167059`:
 
-> Welcome @member to **Fish Community Hub**! We hope you enjoy your stay.
+> Welcome @member to **Royal Services**! We hope you enjoy your stay.
 
-The actual server name is used automatically. Each panel starts with `<:icon:1569075326540185700>` and includes a disabled **Members: 251** button showing the total count at join time, plus a **Dashboard** link to `https://discord.com/channels/1254579248237379604/1564325646761467956`. These panels have no banner images or colored side stripe.
+The greeting uses the configured Royal Services name. Each panel starts with `<:icon:1569075326540185700>` and includes a disabled **Members: 251** button showing the total count at join time, plus a **Dashboard** link to `https://discord.com/channels/1254579248237379604/1564325646761467956`. These panels have no banner images or colored side stripe.
 
 The trailing sentence is randomly chosen from 10 messages in `welcome.py`. Consecutive welcomes use different sentences while the process is running. Old welcome messages keep their original member count; only new joins receive a welcome, with no mass greeting on startup.
 
@@ -110,7 +110,7 @@ Edit `staff_role_ids` in `config.json` and restart to change ticket staff. Owner
 
 ## Payments and panel text
 
-The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your supplied JPEG banner is included unchanged. **`branding.json` is the single shared banner setting**: dashboard, marketplace, support, guidelines, verification panel, and website all use its permanent banner URL. The website reads this setting from GitHub on each page request; no expiring Discord attachment URL is used. Change the URL's `v` query when replacing `assets/banner.jpg` to refresh caches. No bottom banners are used. Welcomes retain the compact layout without a banner.
+The prices from the reference are already in `config.json`. Edit `marketplace_text` or `rules_text` as needed, restart, and run `/setup` again. Your supplied animated banner is included unchanged. **`branding.json` is the single shared banner setting**: dashboard, marketplace, support, guidelines, verification panel, and website all use its permanent banner URL. The website reads this setting from GitHub on each page request; no expiring Discord attachment URL is used. Change the URL's `v` query when replacing `assets/hub-banner.gif` to refresh caches. No bottom banners are used. Welcomes retain the compact layout without a banner.
 
 On startup the bot refreshes saved verification panels and finds existing public and configured verification panels in the latest 50 messages of their configured channels, without creating new posts. Run `/setup` or `/verification-setup` for panels older than that or verification panels in other channels whose IDs were lost when ephemeral storage resets. Historical ephemeral guideline messages cannot be edited; newly opened guidelines use the current banner.
 
@@ -139,7 +139,7 @@ On startup the bot refreshes saved verification panels and finds existing public
 
 Moderation respects both the moderator's and bot's role hierarchy. Purge is disabled in ticket, transcript, and panel channels. Warnings are saved privately; no warning DM is sent automatically.
 
-For announcements, enter `/announce` and fill in **description** (1–4,000 characters). The supplied **Fishy Community Hub** banner appears above the text automatically, using `announcement_banner_url` in `branding.json`. Optionally upload **image_above** to replace that banner, **image_below** beneath the text, and/or **logo** as a small thumbnail beside the description. Upload PNG, JPG, GIF, or WebP files; custom images are attached to the announcement itself. Set **use_banner:false** for text without the default banner. All image fields are optional. The command posts in the current text/announcement channel unless **channel** is selected. Announcements and private confirmations use Components V2 with no colored side stripe; mentions do not send pings. The bot needs View Channel and Send Messages in the destination, Embed Links for images, and Attach Files for custom uploads. There is no automatic cross-post to channel followers.
+For announcements, enter `/announce` and fill in **description** (1–4,000 characters). The supplied **Royal Services** banner appears above the text automatically, using `announcement_banner_url` in `branding.json`. Optionally upload **image_above** to replace that banner, **image_below** beneath the text, and/or **logo** as a small thumbnail beside the description. Upload PNG, JPG, GIF, or WebP files; custom images are attached to the announcement itself. Set **use_banner:false** for text without the default banner. All image fields are optional. The command posts in the current text/announcement channel unless **channel** is selected. Announcements and private confirmations use Components V2 with no colored side stripe; mentions do not send pings. The bot needs View Channel and Send Messages in the destination, Embed Links for images, and Attach Files for custom uploads. There is no automatic cross-post to channel followers.
 
 ## Transcripts and persistence
 

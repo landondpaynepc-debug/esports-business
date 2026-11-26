@@ -24,7 +24,7 @@ def choose_greeting(previous=None):
 
 
 def welcome_panel(member, config, greeting, member_count):
-    server_name = discord.utils.escape_markdown(discord.utils.escape_mentions(member.guild.name))
+    server_name = discord.utils.escape_markdown(discord.utils.escape_mentions(config['name']))
     count = f'{member_count:,}' if member_count is not None else '—'
     view = ui.LayoutView(timeout=None)
     view.add_item(ui.Container(

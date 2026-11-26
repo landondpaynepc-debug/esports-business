@@ -85,7 +85,7 @@ export async function callback(request, env, fetcher = fetch) {
     stage = 'membership_lookup';
     const botHeaders = {Authorization:`Bot ${env.DISCORD_BOT_TOKEN}`};
     const memberResponse = await api(fetcher, `/guilds/${GUILD}/members/${user.id}`, {headers:botHeaders});
-    if (memberResponse.status === 404) return finish(env, 'error', 'This Discord account is not in Fish Community Hub. Join the server or sign in with the correct account.');
+    if (memberResponse.status === 404) return finish(env, 'error', 'This Discord account is not in Royal Services. Join the server or sign in with the correct account.');
     if (!memberResponse.ok) throw new Error('membership-unavailable');
     const member = await memberResponse.json();
     if (!Array.isArray(member.roles)) throw new Error('invalid-membership');
@@ -101,7 +101,7 @@ export async function callback(request, env, fetcher = fetch) {
             fields:[{name:'Member ID', value:user.id}, {name:'Role removed', value:`<@&${ROLE}>`}], timestamp:new Date().toISOString()}]})});
       if (!logged.ok) console.error('verification_log_failed', logged.status);
     } catch { console.error('verification_log_failed'); }
-    return finish(env, 'success', 'You’re verified! Your unverified role has been removed. Welcome to Fish Community Hub.');
+    return finish(env, 'success', 'You’re verified! Your unverified role has been removed. Welcome to Royal Services.');
   } catch (error) {
     // Log only fixed stage names and exception types, never URLs, bodies, codes, or secrets.
     console.error('verification_failed', {stage, type:error instanceof Error ? error.name : 'UnknownError'});
