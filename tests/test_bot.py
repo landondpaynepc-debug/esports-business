@@ -110,7 +110,7 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.bot = EsportsBot(load_config(), Path(self.tmp.name) / 'state.db')
-        self.bot._connection.user = NS(id=99)
+        self.bot._connection.user = NS(id=99, name=self.bot.config['name'])
         self.bot.ready_for_tickets = True
         self.bot.refresh_existing_panels = AsyncMock()
 
@@ -163,7 +163,8 @@ class BotTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(item.disabled)
         self.assertEqual(len(ids), len(set(ids)))
         self.assertTrue(TicketControls(self.bot).is_persistent())
-        self.assertEqual(len(self.bot.tree.get_commands()), 16)
+        self.assertIsNotNone(self.bot.tree.get_command('showcase'))
+        self.assertEqual(len(self.bot.tree.get_commands()), 17)
 
     async def test_welcome_panel_matches_requested_layout(self):
         member = NS(id=12, mention='<@12>', guild=NS(name='Esports Business'))
